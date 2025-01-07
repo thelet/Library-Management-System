@@ -1,0 +1,131 @@
+@startuml
+
+interface Observer {
+    +update(notification: String): void
+}
+
+interface Subject {
+    +attach(observer: Observer): void
+    +detach(observer: Observer): void
+    +notifyObservers(notification: String): void
+}
+
+interface SearchStrategy {
+    +search(criteria: String): List<Book>
+}
+
+interface Iterator {
+    +hasNext(): Boolean
+    +next(): Book
+}
+
+class Book {
+    - title: String
+    - author: String
+    - year: int
+    - category: String
+    - copies: int
+    - isLoaned: Boolean
+    + getDetails(): String
+    + updateCopies(count: int): void
+}
+
+abstract class BookDecorator {
+    # book: Book
+    + getDetails(): String
+}
+
+class ExtendedBookInfo {
+    + addAdditionalInfo(info: String): void
+}
+
+BookDecorator <|-- ExtendedBookInfo
+
+class User {
+    - username: String
+    - passwordHash: String
+    - permissions: List<String>
+    - borrowedBooks: List<Book>
+    + register(password: String): void
+    + login(password: String): Boolean
+    + borrowBook(book: Book): void
+    + returnBook(book: Book): void
+}
+
+class Library {
+    - books: List<Book>
+    - users: List<User>
+    - observers: List<Observer>
+    + addBook(book: Book): void
+    + removeBook(book: Book): void
+    + updateBook(book: Book): void
+    + searchBooks(criteria: String, strategy: SearchStrategy): List<Book>
+    + lendBook(user: User, book: Book): Boolean
+    + returnBook(user: User, book: Book): Boolean
+    + attachObserver(observer: Observer): void
+    + detachObserver(observer: Observer): void
+    + notifyObservers(notification: String): void
+}
+
+Library --> "many" Book
+Library --> "many" User
+Library ..> Observer
+
+class SearchByTitle {
+    + search(criteria: String): List<Book>
+}
+
+class SearchByAuthor {
+    + search(criteria: String): List<Book>
+}
+
+class SearchByCategory {
+    + search(criteria: String): List<Book>
+}
+
+SearchStrategy <|.. SearchByTitle
+SearchStrategy <|.. SearchByAuthor
+SearchStrategy <|.. SearchByCategory
+
+class BookCollectionIterator {
+    - collection: List<Book>
+    - index: int
+    + hasNext(): Boolean
+    + next(): Book
+}
+
+BookCollectionIterator ..|> Iterator
+
+Library --> BookCollectionIterator
+
+class Logger {
+    + log(message: String): void
+}
+
+Library --> Logger
+
+class LibraryGUI {
+    + displayMainMenu(): void
+    + handleAddBook(): void
+    + handleRemoveBook(): void
+    + handleSearchBook(): void
+    + handleViewBooks(): void
+    + handleLendBook(): void
+    + handleReturnBook(): void
+    + handleLogin(): void
+    + handleRegister(): void
+    + handlePopularBooks(): void
+    + handleLogout(): void
+}
+
+LibraryGUI --> Library
+LibraryGUI --> Logger
+
+class UserNotification implements Observer {
+    + update(notification: String): void
+}
+
+UserNotification ..|> Observer
+Library --> UserNotification
+
+@enduml
