@@ -1,0 +1,19 @@
+@startuml
+start
+
+:User clicks "Logout" in LibraryGUI;
+:LibraryGUI processes logout request;
+
+partition FrontEnd {
+    :LibraryGUI calls Library.logoutUser(user);
+}
+
+partition BackEnd {
+    :Library logs out user;
+    :Library notifies observers;
+    :Logger logs "User logged out";
+    :LibraryGUI shows login screen;
+}
+
+stop
+@enduml

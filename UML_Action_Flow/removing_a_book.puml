@@ -1,0 +1,26 @@
+@startuml
+start
+
+:User clicks "Remove Book" in LibraryGUI;
+:LibraryGUI displays Remove Book Form;
+
+partition FrontEnd {
+    :User selects book to remove;
+    :User submits the form;
+}
+
+partition BackEnd {
+    :LibraryGUI validates selection;
+    if (Selection Valid?) then (yes)
+        :LibraryGUI calls Library.removeBook(book);
+        :Library removes book from collection;
+        :Library notifies observers;
+        :Logger logs "Book removed";
+        :LibraryGUI shows success message;
+    else (no)
+        :LibraryGUI shows error message;
+    endif
+}
+
+stop
+@enduml

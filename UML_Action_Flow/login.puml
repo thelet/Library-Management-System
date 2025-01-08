@@ -1,0 +1,30 @@
+@startuml
+start
+
+:User clicks "Login" in LibraryGUI;
+:LibraryGUI displays Login Form;
+
+partition FrontEnd {
+    :User enters credentials;
+    :User submits the form;
+}
+
+partition BackEnd {
+    :LibraryGUI validates input;
+    if (Input Valid?) then (yes)
+        :LibraryGUI calls Library.authenticateUser(credentials);
+        :Library authenticates user;
+        if (Authentication Successful?) then (yes)
+            :LibraryGUI shows dashboard;
+            :Logger logs "User logged in";
+        else (no)
+            :LibraryGUI shows error message;
+            :Logger logs "User login failed";
+        endif
+    else (no)
+        :LibraryGUI shows error message;
+    endif
+}
+
+stop
+@enduml

@@ -15,7 +15,7 @@ interface SearchStrategy {
     +search(criteria: String): List<Book>
 }
 
-interface Iterator {
+interface IteratorInterface {
     +hasNext(): Boolean
     +next(): Book
 }
@@ -29,6 +29,7 @@ class Book implements Subject {
     - copies: int
     - isLoaned: Boolean
     - observers: List<Observer>
+
     + getDetails(): String
     + updateCopies(count: int): void
     + static createBook(title: String, author: String, year: int, category: String, copies: int): Book
@@ -56,6 +57,7 @@ class User implements Observer, Subject {
     - permissions: List<String>
     - borrowedBooks: List<Book>
     - observers: List<Observer>
+
     + register(password: String): void
     + login(password: String): Boolean
     + borrowBook(book: Book): void
@@ -72,6 +74,7 @@ class Library <<singleton>> implements Subject, Observer {
     - users: List<User>
     - observers: List<Observer>
     - instance: Library
+
     + getInstance(): Library
     + addBook(book: Book): void
     + removeBook(book: Book): void
@@ -79,6 +82,7 @@ class Library <<singleton>> implements Subject, Observer {
     + searchBooks(criteria: String, strategy: SearchStrategy): List<Book>
     + lendBook(user: User, book: Book): Boolean
     + returnBook(user: User, book: Book): Boolean
+    + load_books_from_csv(csv_file_path: String): void
     + attach(observer: Observer): void
     + detach(observer: Observer): void
     + notifyObservers(notification: String): void
@@ -108,14 +112,15 @@ SearchStrategy <|.. SearchByAuthor
 SearchStrategy <|.. SearchByCategory
 
 ' Iterator for Books
-class BookCollectionIterator {
+class BookCollectionIterator implements IteratorInterface {
     - collection: List<Book>
     - index: int
+
     + hasNext(): Boolean
     + next(): Book
 }
 
-BookCollectionIterator ..|> Iterator
+BookCollectionIterator ..|> IteratorInterface
 
 Library --> BookCollectionIterator
 
@@ -139,6 +144,8 @@ class LibraryGUI {
     + handleRegister(): void
     + handlePopularBooks(): void
     + handleLogout(): void
+    + on_book_select(event): void
+    + populate_book_list(): void
 }
 
 LibraryGUI --> Library
@@ -150,3 +157,4 @@ Book ..> Observer : manages
 User ..> Observer : manages
 
 @enduml
+
