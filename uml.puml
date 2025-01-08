@@ -1,5 +1,6 @@
 @startuml
 
+' <<Interface>> Definitions for Design Patterns
 interface Observer {
     +update(notification: String): void
 }
@@ -19,17 +20,24 @@ interface Iterator {
     +next(): Book
 }
 
-class Book {
+' Book Class with Factory Method and Subject Implementation
+class Book implements Subject {
     - title: String
     - author: String
     - year: int
     - category: String
     - copies: int
     - isLoaned: Boolean
+    - observers: List<Observer>
     + getDetails(): String
     + updateCopies(count: int): void
+    + static createBook(title: String, author: String, year: int, category: String, copies: int): Book
+    + attach(observer: Observer): void
+    + detach(observer: Observer): void
+    + notifyObservers(notification: String): void
 }
 
+' Decorator Pattern for Book
 abstract class BookDecorator {
     # book: Book
     + getDetails(): String
@@ -41,36 +49,48 @@ class ExtendedBookInfo {
 
 BookDecorator <|-- ExtendedBookInfo
 
-class User {
+' User Class implementing Observer and Subject
+class User implements Observer, Subject {
     - username: String
     - passwordHash: String
     - permissions: List<String>
     - borrowedBooks: List<Book>
+    - observers: List<Observer>
     + register(password: String): void
     + login(password: String): Boolean
     + borrowBook(book: Book): void
     + returnBook(book: Book): void
+    + update(notification: String): void
+    + attach(observer: Observer): void
+    + detach(observer: Observer): void
+    + notifyObservers(notification: String): void
 }
 
-class Library {
+' Library Class as Singleton, Subject, and Observer
+class Library <<singleton>> implements Subject, Observer {
     - books: List<Book>
     - users: List<User>
     - observers: List<Observer>
+    - instance: Library
+    + getInstance(): Library
     + addBook(book: Book): void
     + removeBook(book: Book): void
     + updateBook(book: Book): void
     + searchBooks(criteria: String, strategy: SearchStrategy): List<Book>
     + lendBook(user: User, book: Book): Boolean
     + returnBook(user: User, book: Book): Boolean
-    + attachObserver(observer: Observer): void
-    + detachObserver(observer: Observer): void
+    + attach(observer: Observer): void
+    + detach(observer: Observer): void
     + notifyObservers(notification: String): void
+    + update(notification: String): void
 }
 
 Library --> "many" Book
 Library --> "many" User
-Library ..> Observer
+Library ..|> Subject
+Library ..|> Observer
 
+' Search Strategies
 class SearchByTitle {
     + search(criteria: String): List<Book>
 }
@@ -87,6 +107,7 @@ SearchStrategy <|.. SearchByTitle
 SearchStrategy <|.. SearchByAuthor
 SearchStrategy <|.. SearchByCategory
 
+' Iterator for Books
 class BookCollectionIterator {
     - collection: List<Book>
     - index: int
@@ -98,12 +119,14 @@ BookCollectionIterator ..|> Iterator
 
 Library --> BookCollectionIterator
 
+' Logger Class
 class Logger {
     + log(message: String): void
 }
 
 Library --> Logger
 
+' GUI Classes
 class LibraryGUI {
     + displayMainMenu(): void
     + handleAddBook(): void
@@ -121,11 +144,9 @@ class LibraryGUI {
 LibraryGUI --> Library
 LibraryGUI --> Logger
 
-class UserNotification implements Observer {
-    + update(notification: String): void
-}
-
-UserNotification ..|> Observer
-Library --> UserNotification
+' Relationships
+Library ..> Observer : manages
+Book ..> Observer : manages
+User ..> Observer : manages
 
 @enduml
