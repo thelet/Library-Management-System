@@ -48,7 +48,7 @@ class Library(Subject, Observer):
 
     def lendBook(self, user: 'User', book: Book) -> bool:
         if book.copies > 0:
-            book.updateCopies(-1)
+            #book.updateCopies(-1)
             user.borrowBook(book)
             self.notifyObservers(f"{user.username} borrowed '{book.title}'.")
             return True
@@ -60,7 +60,7 @@ class Library(Subject, Observer):
 
     def returnBook(self, user: 'User', book: Book) -> bool:
         if book in user.borrowedBooks:
-            book.updateCopies(1)
+            #book.updateCopies(1)
             user.returnBook(book)
             self.notifyObservers(f"{user.username} returned '{book.title}'.")
             return True
