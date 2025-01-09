@@ -1,6 +1,6 @@
 # decorator.py
 from abc import ABC, abstractmethod
-from book import Book
+from Classes.book import Book
 
 class BookDecorator(ABC, Book):
     def __init__(self, book: Book):

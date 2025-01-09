@@ -13,6 +13,10 @@ class Observer(ABC):
     def update(self, notification: str):
         """Receive a notification."""
         pass
+    @abstractmethod
+    def to_json(self):
+        """returns a json dictionary representation of the observer"""
+        pass
 
 class Subject(ABC):
     @abstractmethod

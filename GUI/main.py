@@ -1,11 +1,11 @@
-# main.py
 import tkinter as tk
-from gui import LibraryGUI
+from entry_gui import EntryGUI
 
 def main():
     root = tk.Tk()
-    gui = LibraryGUI(root)
+    app = EntryGUI(root)
     root.mainloop()
 
 if __name__ == "__main__":
     main()
+

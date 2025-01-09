@@ -1,7 +1,7 @@
 title,author,is_loaned,copies,genre,year
 The Catcher in the Rye,J.D. Salinger,No,3,Fiction,1951
 To Kill a Mockingbird,Harper Lee,Yes,2,Fiction,1960
-1984,George Orwell,Yes,5,Dystopian,1949
+1984,George Orwell,Yes,5,Dystopian,1949,3
 The Great Gatsby,F. Scott Fitzgerald,No,4,Classic,1925
 Moby Dick,Herman Melville,No,1,Adventure,1851
 Pride and Prejudice,Jane Austen,Yes,3,Romance,1813

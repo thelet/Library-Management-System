@@ -1,7 +1,7 @@
 # iterator.py
 from typing import List
 from observer import Iterator
-from book import Book
+from Classes.book import Book
 
 class BookCollectionIterator(Iterator):
     def __init__(self, collection: List[Book]):

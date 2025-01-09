@@ -3,7 +3,9 @@ from typing import List
 from observer import Subject, Observer
 
 class Book(Subject):
+    book_id = 0
     def __init__(self, title: str, author: str, year: int, category: str, copies: int):
+        self.id = Book.book_id
         self.title = title
         self.author = author
         self.year = year
@@ -28,6 +30,7 @@ class Book(Subject):
     def createBook(title: str, author: str, year: int, category: str, copies: int) -> 'Book':
         if copies < 0:
             raise ValueError("Number of copies cannot be negative.")
+        Book.book_id += 1
         return Book(title, author, year, category, copies)
 
     # Subject interface methods
@@ -44,3 +47,15 @@ class Book(Subject):
     def notifyObservers(self, notification: str):
         for observer in self.observers:
             observer.update(notification)
+
+    def to_json(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "author": self.author,
+            "year": self.year,
+            "category": self.category,
+            "copies": self.copies,
+            "isLoaned": self.isLoaned,
+            "borrow_count": self.borrow_count,
+        }

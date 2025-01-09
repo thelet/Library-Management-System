@@ -1,7 +1,7 @@
 # prints_user_interface.py
-from library import Library
-from book import Book
-from user import User
+from Classes.library import Library
+from Classes.book import Book
+from Classes.user import User
 from logger import Logger
 from strategy import SearchByTitle, SearchByAuthor, SearchByCategory
 

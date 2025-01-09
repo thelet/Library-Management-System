@@ -1,7 +1,7 @@
 # strategy.py
 from abc import ABC, abstractmethod
 from typing import List
-from book import Book
+from Classes.book import Book
 
 class SearchStrategy(ABC):
     @abstractmethod
