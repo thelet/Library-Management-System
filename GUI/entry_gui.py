@@ -15,21 +15,31 @@ class EntryGUI:
         # Label
         tk.Label(
             self.master,
-            text="Choose file path for previous library data.\nIf you want to start with an empty collection, do not load any files."
+            text="Choose file path for previous library data.\nIf you want to start with an empty collection, do not load any files.",
         ).pack(pady=10)
 
         # Buttons
-        tk.Button(self.master, text="Load Book Collection from CSV", command=self.load_books_csv).pack(pady=5)
-        tk.Button(self.master, text="Load User Collection from CSV", command=self.load_users_csv).pack(pady=5)
+        tk.Button(
+            self.master,
+            text="Load Book Collection from CSV",
+            command=self.load_books_csv,
+        ).pack(pady=5)
+        tk.Button(
+            self.master,
+            text="Load User Collection from CSV",
+            command=self.load_users_csv,
+        ).pack(pady=5)
 
         # Start button
-        self.start_button = tk.Button(self.master, text="Start", bg="green", fg="white", command=self.start_system)
+        self.start_button = tk.Button(
+            self.master, text="Start", bg="green", fg="white", command=self.start_system
+        )
         self.start_button.pack(pady=5)
 
     def load_books_csv(self):
         path = filedialog.askopenfilename(
             title="Select Books CSV",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
         )
         if path:
             self.books_csv_path = path
@@ -42,7 +52,7 @@ class EntryGUI:
     def load_users_csv(self):
         path = filedialog.askopenfilename(
             title="Select Users CSV",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
         )
         if path:
             self.users_csv_path = path
