@@ -39,7 +39,7 @@ class LibraryGUI:
 
     def create_widgets(self):
         """Build the main library GUI layout."""
-        is_librarian = isinstance(self.current_user, Librarian)
+        is_librarian = self.current_user.role = "librarian"
         is_guest = self.current_user is None
 
         # ------ Top Frame (user-based buttons) ------
@@ -147,7 +147,7 @@ class LibraryGUI:
         If current_user has borrowed a book, highlight that entry in green.
         """
         self.book_listbox.delete(0, tk.END)
-        for i, book in enumerate(self.library.books):
+        for i, book in enumerate(self.library.books.values()):
             self.book_listbox.insert(tk.END, book.title)
             if self.current_user and book in getattr(
                 self.current_user, "borrowedBooks", []
@@ -161,7 +161,7 @@ class LibraryGUI:
             return
         index = selection[0]
         btitle = event.widget.get(index)
-        book = next((b for b in self.library.books if b.title == btitle), None)
+        book = next((b for b in self.library.books.values() if b.title == btitle), None)
         if not book:
             return
 
@@ -285,7 +285,7 @@ class LibraryGUI:
         remove_win.title("Remove Book")
 
         tk.Label(remove_win, text="Select Book to Remove:").pack(padx=5, pady=5)
-        book_titles = [b.title for b in self.library.books]
+        book_titles = [b.title for b in self.library.books.values()]
         if not book_titles:
             messagebox.showinfo("Info", "No books in the library.")
             remove_win.destroy()
@@ -299,7 +299,7 @@ class LibraryGUI:
 
         def confirm_remove():
             title = sel_var.get()
-            book = next((b for b in self.library.books if b.title == title), None)
+            book = next((b for b in self.library.books.values() if b.title == title), None)
             if not book:
                 messagebox.showerror("Error", "Book not found.")
                 return
@@ -328,7 +328,7 @@ class LibraryGUI:
             return
         idx = sel[0]
         btitle = self.book_listbox.get(idx)
-        book = next((b for b in self.library.books if b.title == btitle), None)
+        book = next((b for b in self.library.books.values() if b.title == btitle), None)
         if book:
             success = self.library.lendBook(self.current_user, book)
             if success:
@@ -354,7 +354,7 @@ class LibraryGUI:
             return
         idx = sel[0]
         btitle = self.book_listbox.get(idx)
-        book = next((b for b in self.library.books if b.title == btitle), None)
+        book = next((b for b in self.library.books.values() if b.title == btitle), None)
         if book:
             success = self.library.returnBook(self.current_user, book)
             if success:

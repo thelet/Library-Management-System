@@ -35,9 +35,10 @@ class LoginGUI:
         password = self.password_entry.get().strip()
 
         # Find a librarian with these credentials
-        librarian = next((l for l in self.library.librarian_users
-                          if l.username == username and l._User__passwordHash == password), None)
+        librarian = next((l for l in self.library.users.values()
+                          if l.username == username and l.role == "librarian" and l._User__passwordHash == password), None)
         if librarian:
+            print(f"{username} login successful")
             self.open_main_screen(librarian)
         else:
             messagebox.showerror("Error", "Invalid librarian credentials.")
@@ -47,9 +48,10 @@ class LoginGUI:
         password = self.password_entry.get().strip()
 
         # Find a user with these credentials
-        user = next((u for u in self.library.users
+        user = next((u for u in self.library.users.values()
                      if u.username == username and u._User__passwordHash == password), None)
         if user:
+            print(f"{username} login successful")
             self.open_main_screen(user)
         else:
             messagebox.showerror("Error", "Invalid user credentials.")
@@ -61,11 +63,12 @@ class LoginGUI:
             messagebox.showerror("Error", "Username and password cannot be empty.")
             return
         # Check if already exists
-        if any(l.username == username for l in self.library.librarian_users):
+        if any(l.username == username for l in self.library.users.values()):
             messagebox.showerror("Error", "Librarian username already exists.")
             return
         librarian = Librarian(username, password)
-        self.library.librarian_users.append(librarian)
+        librarian_id = librarian.id
+        self.library.users[librarian_id] = librarian
         messagebox.showinfo("Success", f"Librarian '{username}' created.")
         self.open_main_screen(librarian)
 
@@ -75,11 +78,12 @@ class LoginGUI:
         if not username or not password:
             messagebox.showerror("Error", "Username and password cannot be empty.")
             return
-        if any(u.username == username for u in self.library.users):
+        if any(u.username == username for u in self.library.users.values()):
             messagebox.showerror("Error", "User username already exists.")
             return
         user = User(username, password)  # Default permissions: ["borrow", "return"]
-        self.library.users.append(user)
+        user_id = user.id
+        self.library.users[user_id] = user
         messagebox.showinfo("Success", f"User '{username}' created.")
         self.open_main_screen(user)
 

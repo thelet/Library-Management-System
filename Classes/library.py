@@ -9,7 +9,8 @@ from observer import Subject, Observer
 from Classes.book import Book
 from strategy import SearchStrategy
 from exceptions import LibraryException, PermissionDeniedException, BookNotFoundException
-from functions.csv_json_functions import json_to_csv
+import GUI.JSON_manager as JS_mng
+from GUI.JSON_manager import *
 
 # Forward references to avoid circular imports
 from typing import TYPE_CHECKING
@@ -26,15 +27,16 @@ class Library(Subject, Observer):
     """
 
     __instance = None
+    json_dirs = r"C:\Users\thele\Documents\PythonProject\oop_ex_3\data_files\JSON_data"
 
     def __init__(self):
         if Library.__instance is not None:
             raise RuntimeError("Library is a singleton! Use Library.getInstance() instead.")
 
         # Collections
-        self.books: List[Book] = []
-        self.users: List['User'] = []
-        self.librarian_users: List['Librarian'] = []
+        self.books: dict[int, 'Book'] = {}
+        self.users: dict[int ,'User'] = {}
+        #self.librarian_users: List['Librarian'] = []
         self.books_observers: List[Observer] = []
 
         Library.__instance = self
@@ -60,7 +62,8 @@ class Library(Subject, Observer):
         """
         if caller is not None and not caller.has_permission("manage_books"):
             raise PermissionDeniedException("manage_books")
-        self.books.append(book)
+        book_id = book.id
+        self.books[book_id] = book
         print(f"Book '{book.title}' added to the library.")
         self.notifyObservers(f"New book added: '{book.title}' by {book.author}.")
 
@@ -71,8 +74,8 @@ class Library(Subject, Observer):
         """
         if caller is not None and not caller.has_permission("manage_books"):
             raise PermissionDeniedException("manage_books")
-        if book in self.books:
-            self.books.remove(book)
+        if book.id in self.books.keys():
+            self.books.pop(book.id)
             print(f"Book '{book.title}' removed from the library.")
             self.notifyObservers(f"Book removed: '{book.title}' by {book.author}'.")
         else:
@@ -90,7 +93,7 @@ class Library(Subject, Observer):
 
     # ------------- Searching -------------
     def searchBooks(self, criteria: str, strategy: SearchStrategy) -> List[Book]:
-        return strategy.search(self.books, criteria)
+        return strategy.search(self.books.values(), criteria)
 
     # ------------- Lending / Returning -------------
     def lendBook(self, user: 'User', book: Book) -> bool:
@@ -142,127 +145,43 @@ class Library(Subject, Observer):
         print(f"Library received notification: {notification}")
 
     # ------------- CSV / JSON Persistence -------------
-    def books_collection_to_json(self):
-        """
-        Write current library books to JSON, then convert to CSV.
-        """
-        json_books = [b.to_json() for b in self.books]
-        json_file_path = r"C:\path\to\books_collection.json"
-        try:
-            with open(json_file_path, "w", encoding="utf-8") as file:
-                json.dump(json_books, file, indent=4)
-            print(f"Data successfully written to {json_file_path}.")
-        except Exception as e:
-            print(f"Failed to write data to JSON file: {e}")
-            return
-
-        # Convert JSON to CSV
-        try:
-            from functions.csv_json_functions import json_to_csv
-            csv_dest = r"C:\path\to\books_collection.csv"
-            json_to_csv(json_file_path, csv_dest)
-        except Exception as e:
-            print(f"Failed to convert JSON to CSV: {e}")
-
-    def load_books_from_csv(self, csv_file_path: str):
-        """
-        Reads books from a CSV and adds them to the library.
-        """
-        if not os.path.exists(csv_file_path):
-            print(f"CSV file '{csv_file_path}' does not exist.")
-            return
-
-        required_fields = ['title', 'author', 'is_loaned', 'copies', 'genre', 'year']
-
-        with open(csv_file_path, newline='', encoding='utf-8-sig') as csvfile:
-            try:
-                reader = csv.DictReader(csvfile, delimiter=',')
-                print(f"CSV Headers: {reader.fieldnames}")
-
-                missing_fields = [f for f in required_fields if f not in reader.fieldnames]
-                if missing_fields:
-                    print(f"CSV is missing required fields: {missing_fields}")
-                    return
-
-                from Classes.book import Book
-                from exceptions import PermissionDeniedException, BookNotFoundException
-
-                # 'self' acts as a caller if needed
-                for row_number, row in enumerate(reader, start=2):
-                    try:
-                        print(f"Processing Row {row_number}: {row}")
-
-                        title = row['title'].strip()
-                        author = row['author'].strip()
-                        is_loaned = row['is_loaned'].strip().lower()
-                        copies_str = row['copies'].strip()
-                        genre = row['genre'].strip()
-                        year_str = row['year'].strip()
-
-                        copies = int(copies_str) if copies_str else 0
-                        year = int(year_str) if year_str else 0
-                        if is_loaned == 'yes':
-                            available_copies = copies - 1 if copies > 0 else 0
-                        else:
-                            available_copies = copies
-
-                        book = Book.createBook(title, author, year, genre, available_copies)
-                        self.addBook(book, self)  # 'self' is the caller
-                    except ValueError as ve:
-                        print(f"Error processing row {row_number}: {ve}")
-                    except KeyError as ke:
-                        print(f"Missing expected field {ke} in row {row_number}.")
-
-            except csv.Error as e:
-                print(f"Error reading CSV file: {e}")
-                return
-
-        self.books_collection_to_json()
-        print(f"Loaded books from '{csv_file_path}'. Total books: {len(self.books)}")
 
     def load_users_from_csv(self, csv_file_path: str):
-        """
-        Example function for loading user data from CSV, if you want to implement it.
-        """
-        if not os.path.exists(csv_file_path):
-            print(f"CSV file '{csv_file_path}' does not exist.")
-            return
+        from Classes.user import User
+        print("loading users from CSV...")
+        json_root =os.path.join(Library.json_dirs, "users_from_csv")
+        JS_mng.csv_to_individual_json_files(csv_file_path, JS_mng.user_headers_mapping, json_root)
+        self.users = JS_mng.load_objs_from_json(json_root, "users")
+        print(f"Loaded users from '{csv_file_path}'. \n"
+              f"Users List:\n")
 
-        # e.g. fields: username, passwordHash, role (user/librarian)
-        required_fields = ["username", "passwordHash", "role"]
+        if self.books is not None and len(self.books) > 0:
+            JS_mng.reconnect_borrowed_books(self.users, self.books)
+            JS_mng.reattached_observers(self.books, self.users)
 
-        with open(csv_file_path, newline='', encoding='utf-8-sig') as csvfile:
-            try:
-                reader = csv.DictReader(csvfile, delimiter=',')
-                print(f"CSV Headers: {reader.fieldnames}")
+        for user in self.users.values():
+            print(user)
 
-                missing_fields = [f for f in required_fields if f not in reader.fieldnames]
-                if missing_fields:
-                    print(f"CSV is missing required fields: {missing_fields}")
-                    return
 
-                from Classes.user import User, Librarian
 
-                for row_number, row in enumerate(reader, start=2):
-                    username = row["username"].strip()
-                    password_hash = row["passwordHash"].strip()
-                    role = row["role"].strip().lower()
+    def load_books_from_csv(self, csv_file_path: str):
+        print("loading books from CSV...")
+        json_root = os.path.join(Library.json_dirs, "books_from_csv")
+        JS_mng.csv_to_individual_json_files(csv_file_path, JS_mng.book_headers_mapping, json_root)
+        self.books = JS_mng.load_objs_from_json(json_root, "books")
+        print(f"Loaded books from '{csv_file_path}'. \n"
+              f"Books List:\n")
 
-                    if role == "librarian":
-                        librarian = Librarian(username, password_hash)
-                        self.librarian_users.append(librarian)
-                        print(f"Librarian '{username}' loaded from CSV.")
-                    else:
-                        user = User(username, password_hash)
-                        self.users.append(user)
-                        print(f"User '{username}' loaded from CSV.")
+        if self.users is not None and len(self.users) > 0:
+            JS_mng.reconnect_borrowed_books(self.users, self.books)
+            JS_mng.reattached_observers(self.books, self.users)
 
-            except csv.Error as e:
-                print(f"Error reading CSV file: {e}")
-                return
+        for book in self.books.values():
+            print(book)
 
-        print(
-            f"Loaded users from '{csv_file_path}'. Total users: {len(self.users)}, librarians: {len(self.librarian_users)}")
+
+
+
 
     def to_json(self) -> dict:
         return {

@@ -18,6 +18,7 @@ class Observer(ABC):
         """returns a json dictionary representation of the observer"""
         pass
 
+
 class Subject(ABC):
     @abstractmethod
     def attach(self, observer: Observer):
