@@ -12,13 +12,10 @@ from exceptions import PermissionDeniedException
 
 class LibraryGUI:
     """
-    Main GUI for the Library system with:
-      - Role-based display (librarian vs. user vs. guest)
-      - Borrowed books in green
-      - Return button in green for user's borrowed book
-      - Lend/Return at bottom-right
-      - Search text box above book list
-      - Export to CSV button
+    Main GUI for the Library system with modifications:
+      1) "Apply for Notifications" button above Lend/Return to attach the current user to the selected book.
+      2) Notifications screen next to the view books area, displaying user.notifications.
+      3) Separate buttons: "Export Users CSV" and "Export Books CSV."
     """
 
     def __init__(self, root: tk.Toplevel, current_user: Optional[User] = None):
@@ -34,28 +31,40 @@ class LibraryGUI:
         self.search_entry = None
         self.lend_button = None
         self.return_button = None
+        self.apply_notifications_button = None
+
+        # Notification UI
+        self.notifications_listbox = None
 
         self.create_widgets()
 
     def create_widgets(self):
-        """Build the main library GUI layout."""
-        is_librarian = self.current_user.role = "librarian"
-        is_guest = self.current_user is None
+        """
+        Build the main library GUI layout with:
+         - Top frame: user-based buttons
+         - Middle area: search + main content
+         - Right area: details + Lend/Return + "Apply for Notifications"
+         - Notifications area to the side
+         - Two separate Export CSV buttons for users and books
+        """
+        # Determine user role
+        is_librarian = isinstance(self.current_user, Librarian)
+        is_guest = (self.current_user is None)
 
-        # ------ Top Frame (user-based buttons) ------
+        # ------ Top Frame (user-based, plus export CSV) ------
         top_frame = tk.Frame(self.root)
         top_frame.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
-        # 1) Add/Remove Book -> Only if librarian
+        # If librarian -> Add/Remove Book
         if is_librarian:
             tk.Button(top_frame, text="Add Book", command=self.handleAddBook).pack(
                 side=tk.LEFT, padx=5
             )
-            tk.Button(
-                top_frame, text="Remove Book", command=self.handleRemoveBook
-            ).pack(side=tk.LEFT, padx=5)
+            tk.Button(top_frame, text="Remove Book", command=self.handleRemoveBook).pack(
+                side=tk.LEFT, padx=5
+            )
 
-        # 2) Log In / Sign Up -> Only if guest
+        # If guest -> Log In / Sign Up
         if is_guest:
             tk.Button(top_frame, text="Log In", command=self.handleLogin).pack(
                 side=tk.LEFT, padx=5
@@ -64,24 +73,25 @@ class LibraryGUI:
                 side=tk.LEFT, padx=5
             )
 
-        # 3) Logout -> only if not guest
+        # If not guest -> Logout
         if not is_guest:
             tk.Button(top_frame, text="Logout", command=self.handleLogout).pack(
                 side=tk.LEFT, padx=5
             )
 
-        # 4) Export to CSV button -> always shown (or only if user is librarian, your choice).
-        # We'll show it always for demonstration.
-        export_button = tk.Button(
-            top_frame, text="Export to CSV", command=self.handleExportToCSV
+        # Separate export CSV buttons
+        tk.Button(top_frame, text="Export Users CSV", command=self.handleExportUsersCSV).pack(
+            side=tk.LEFT, padx=5
         )
-        export_button.pack(side=tk.LEFT, padx=5)
+        tk.Button(top_frame, text="Export Books CSV", command=self.handleExportBooksCSV).pack(
+            side=tk.LEFT, padx=5
+        )
 
-        # ------ Main Frame (Search + Book List + Details + Lend/Return) ------
+        # ------ Main Frame (search + content) ------
         main_frame = tk.Frame(self.root)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        # Search section above the list
+        # 1) Search section
         search_frame = tk.Frame(main_frame)
         search_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
 
@@ -93,7 +103,7 @@ class LibraryGUI:
             side=tk.LEFT, padx=5
         )
 
-        # Content -> Book list + details
+        # 2) Content area - book list + details + notifications
         content_frame = tk.Frame(main_frame)
         content_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
@@ -109,36 +119,54 @@ class LibraryGUI:
         scrollbar.config(command=self.book_listbox.yview)
         self.book_listbox.bind("<<ListboxSelect>>", self.on_book_select)
 
-        # Right: Details
+        # Middle: Notification area
+        notification_frame = tk.Frame(content_frame)
+        notification_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+
+        tk.Label(notification_frame, text="Notifications:").pack(anchor="nw")
+        self.notifications_listbox = tk.Listbox(notification_frame, height=15)
+        self.notifications_listbox.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        refresh_button = tk.Button(notification_frame, text="Refresh Notifications", command=self.refresh_notifications)
+        refresh_button.pack(side=tk.TOP, pady=5)
+
+        # Right: Book details
         right_frame = tk.Frame(content_frame)
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
         self.details_label = tk.Label(
-            right_frame,
-            text="Select a book to see details.",
-            anchor="nw",
-            justify=tk.LEFT,
+            right_frame, text="Select a book to see details.", anchor="nw", justify=tk.LEFT
         )
         self.details_label.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        # Bottom-right: Lend/Return
+        # Bottom-right frame for Lend/Return + Apply for Notifications
         bottom_right_frame = tk.Frame(right_frame)
         bottom_right_frame.pack(side=tk.BOTTOM, anchor="se", pady=10)
 
+        # "Apply for Notifications" button
+        # (Attaches current user to the selected book.)
+        if not is_guest:
+            self.apply_notifications_button = tk.Button(
+                bottom_right_frame, text="Apply for Notifications", command=self.handleApplyForNotifications
+            )
+            self.apply_notifications_button.pack(side=tk.TOP, pady=5)
+
+        # Lend/Return buttons
         if not is_guest and self.current_user.has_permission("borrow"):
             self.lend_button = tk.Button(
                 bottom_right_frame, text="Lend Book", command=self.handleLendBook
             )
-            self.lend_button.pack(side=tk.LEFT, padx=5)
+            self.lend_button.pack(side=tk.TOP, pady=5)
 
         if not is_guest and self.current_user.has_permission("return"):
             self.return_button = tk.Button(
                 bottom_right_frame, text="Return Book", command=self.handleReturnBook
             )
-            self.return_button.pack(side=tk.LEFT, padx=5)
+            self.return_button.pack(side=tk.TOP, pady=5)
 
-        # Populate list
+        # Populate book list
         self.populate_book_list()
+        # Populate notifications
+        self.refresh_notifications()
 
     # ------------------ Populate & Refresh ------------------ #
     def populate_book_list(self):
@@ -149,9 +177,7 @@ class LibraryGUI:
         self.book_listbox.delete(0, tk.END)
         for i, book in enumerate(self.library.books.values()):
             self.book_listbox.insert(tk.END, book.title)
-            if self.current_user and book in getattr(
-                self.current_user, "borrowedBooks", []
-            ):
+            if self.current_user and book in getattr(self.current_user, "borrowedBooks", []):
                 self.book_listbox.itemconfig(i, bg="green")
 
     def on_book_select(self, event):
@@ -175,44 +201,41 @@ class LibraryGUI:
         )
 
         # If user borrowed => add a line + color Return button
-        if self.current_user and book in getattr(
-            self.current_user, "borrowedBooks", []
-        ):
+        if self.current_user and book in getattr(self.current_user, "borrowedBooks", []):
             details += "\nYou have borrowed this book."
             if self.return_button:
                 self.return_button.config(bg="green")
         else:
-            # revert return button color
             if self.return_button:
                 self.return_button.config(bg="SystemButtonFace")
 
         self.details_label.config(text=details)
 
+    # ------------------ Notifications ------------------ #
+    def refresh_notifications(self):
+        """Populate the notifications listbox for the current user."""
+        self.notifications_listbox.delete(0, tk.END)
+        if self.current_user:
+            for note in self.current_user.notifications:
+                self.notifications_listbox.insert(tk.END, note)
+
     # ------------------ SEARCH ------------------ #
     def perform_search(self):
         criteria = self.search_entry.get().strip()
         if not criteria:
-            # Revert to showing all books if no search criteria are provided
             self.populate_book_list()
             return
 
-        # Combine results from all search criteria
         title_results = self.library.searchBooks(criteria, SearchByTitle())
         author_results = self.library.searchBooks(criteria, SearchByAuthor())
         category_results = self.library.searchBooks(criteria, SearchByCategory())
 
-        # Use a set to avoid duplicate entries and merge results
-        all_results = {
-            book for book in title_results + author_results + category_results
-        }
+        all_results = set(title_results + author_results + category_results)
 
-        # Update the listbox with the combined search results
         self.book_listbox.delete(0, tk.END)
         for i, book in enumerate(all_results):
             self.book_listbox.insert(tk.END, book.title)
-            if self.current_user and book in getattr(
-                self.current_user, "borrowedBooks", []
-            ):
+            if self.current_user and book in getattr(self.current_user, "borrowedBooks", []):
                 self.book_listbox.itemconfig(i, bg="green")
 
     # ------------------ Button Handlers ------------------ #
@@ -263,15 +286,11 @@ class LibraryGUI:
                 messagebox.showinfo("Success", f"Book '{title}' added.")
                 add_win.destroy()
             except ValueError:
-                messagebox.showerror(
-                    "Error", "Numeric values required for year/copies."
-                )
+                messagebox.showerror("Error", "Numeric values required for year/copies.")
             except PermissionDeniedException:
                 messagebox.showerror("Error", "No permission to add books.")
 
-        tk.Button(add_win, text="Add", command=confirm_add).grid(
-            row=5, column=0, columnspan=2, pady=10
-        )
+        tk.Button(add_win, text="Add", command=confirm_add).grid(row=5, column=0, columnspan=2, pady=10)
 
     def handleRemoveBook(self):
         if not self.current_user:
@@ -292,9 +311,7 @@ class LibraryGUI:
             return
 
         sel_var = tk.StringVar(value=book_titles[0])
-        combo = ttk.Combobox(
-            remove_win, textvariable=sel_var, values=book_titles, state="readonly"
-        )
+        combo = ttk.Combobox(remove_win, textvariable=sel_var, values=book_titles, state="readonly")
         combo.pack(padx=5, pady=5)
 
         def confirm_remove():
@@ -336,8 +353,7 @@ class LibraryGUI:
                 messagebox.showinfo("Success", f"You borrowed '{btitle}'.")
             else:
                 messagebox.showwarning(
-                    "Warning",
-                    f"No copies available for '{btitle}'. Subscribed for notifications.",
+                    "Warning", f"No copies available for '{btitle}'. Subscribed for notifications."
                 )
 
     def handleReturnBook(self):
@@ -363,6 +379,26 @@ class LibraryGUI:
             else:
                 messagebox.showerror("Error", f"You do not have '{btitle}' borrowed.")
 
+    def handleApplyForNotifications(self):
+        """
+        Attach the current user as an observer to the selected book.
+        """
+        if not self.current_user:
+            messagebox.showwarning("Warning", "Must be logged in to apply for notifications.")
+            return
+
+        sel = self.book_listbox.curselection()
+        if not sel:
+            messagebox.showinfo("Info", "Select a book from the list first.")
+            return
+
+        idx = sel[0]
+        btitle = self.book_listbox.get(idx)
+        book = next((b for b in self.library.books.values() if b.title == btitle), None)
+        if book:
+            book.attach(self.current_user)
+            messagebox.showinfo("Info", f"You have subscribed to notifications for '{btitle}'.")
+
     def handleLogin(self):
         from login_gui import LoginGUI
 
@@ -382,34 +418,33 @@ class LibraryGUI:
             messagebox.showinfo("Logout", "Guest session ended.")
         self.root.destroy()
 
-    # ------------------ Export to CSV Handler ------------------ #
-    def handleExportToCSV(self):
-        """
-        Asks for two CSV file paths: one for books, one for users.
-        Then calls a library method to export the updated data.
-        """
-        from tkinter import filedialog
-
-        # Choose path for Books CSV
-        books_path = filedialog.asksaveasfilename(
-            title="Export Books CSV",
-            defaultextension=".csv",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
-        )
-        if not books_path:
-            return  # user canceled
-
-        # Choose path for Users CSV
-        users_path = filedialog.asksaveasfilename(
+    # ------------------ Export to CSV Handlers ------------------ #
+    def handleExportUsersCSV(self):
+        """Open file dialog, export users to CSV via a library method."""
+        csv_path = filedialog.asksaveasfilename(
             title="Export Users CSV",
             defaultextension=".csv",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
         )
-        if not users_path:
-            return  # user canceled
-
+        if not csv_path:
+            return
         try:
-            self.library.export_data_to_csv(books_path, users_path)
-            messagebox.showinfo("Export", "Data exported successfully!")
+            self.library.export_users_to_csv(csv_path)
+            messagebox.showinfo("Export", f"Users exported to {csv_path}.")
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to export data: {e}")
+            messagebox.showerror("Error", f"Failed to export users CSV: {e}")
+
+    def handleExportBooksCSV(self):
+        """Open file dialog, export books to CSV via a library method."""
+        csv_path = filedialog.asksaveasfilename(
+            title="Export Books CSV",
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+        )
+        if not csv_path:
+            return
+        try:
+            self.library.export_books_to_csv(csv_path)
+            messagebox.showinfo("Export", f"Books exported to {csv_path}.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export books CSV: {e}")
