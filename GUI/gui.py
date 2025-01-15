@@ -12,48 +12,59 @@ from exceptions import PermissionDeniedException
 
 class LibraryGUI:
     """
-    A GUI for the Library system where:
-      - The book screen (search, books, details, Lend/Return, etc.) is on top.
-      - The notifications screen is below, smaller in height, with a Text + scrollbar + refresh button centered.
-      - Smaller default window size: 800x400.
-      - Buttons are centered in their frames.
-      - is_librarian = self.current_user.role == "librarian" (unchanged).
+    GUI for the Library system, with the following improvements:
+      1) A Filter combobox next to the search bar, offering:
+         - All Books
+         - By Genre (displays a second genre combobox)
+         - Popular Books  (placeholder: self.library.getPopularBooks())
+         - My Books       (books the user borrowed)
+         - Available Books (copies > 0)
+         - Not Available Books (copies == 0)
+         - Previously Loand (placeholder: current_user.prev_books)
+         - Notifications (books where current_user is in user_observers)
+      2) A 'Remove from Notifications' button next to 'Apply for Notifications'.
+      3) is_librarian = self.current_user.role == "librarian" is unchanged.
+      4) Smaller window size: 800x400.
+      5) Notifications screen below the book screen, each with scrollbars.
     """
 
     def __init__(self, root: tk.Toplevel, current_user: Optional[User] = None):
         self.root = root
         self.root.title("Library Management System")
-        # Smaller GUI window size
-        self.root.geometry("800x400")
+        self.root.geometry("800x400")  # Smaller default GUI size
 
         self.logger = Logger()
         self.library = Library.getInstance()
         self.current_user = current_user  # None => guest
 
-        # We'll keep the rest of the attributes
+        # Fields related to filter and search
         self.search_entry = None
+        self.filter_combobox = None
+        self.genre_label = None
+        self.genre_combobox = None
+
+        # Book list, details
         self.book_listbox = None
         self.details_label = None
+
+        # Buttons
         self.lend_button = None
         self.return_button = None
         self.apply_notifications_button = None
+        self.remove_notifications_button = None
 
+        # Notifications Text
         self.notifications_text = None
 
         self.create_widgets()
 
     def create_widgets(self):
-        """
-        Build the layout:
-          - Top frame: user-based buttons, 2 CSV export buttons
-          - Main frame: Top portion -> books; Bottom portion -> smaller notifications
-        """
-        # Determine if librarian or guest
-        # **DO NOT CHANGE** - as requested
-        is_librarian = self.current_user.role == "librarian"
+        # DO NOT CHANGE: is_librarian = self.current_user.role == "librarian"
+        # (if current_user is None, this will be False)
+        is_librarian = (self.current_user is not None and self.current_user.role == "librarian")
         is_guest = (self.current_user is None)
 
-        # ------- TOP FRAME (buttons) -------
+        # --- TOP FRAME (User-based buttons, CSV exports) ---
         top_frame = tk.Frame(self.root)
         top_frame.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
@@ -68,50 +79,70 @@ class LibraryGUI:
         if not is_guest:
             tk.Button(top_frame, text="Logout", command=self.handleLogout).pack(side=tk.LEFT, padx=5)
 
-        # Two CSV export buttons
         tk.Button(top_frame, text="Export Users CSV", command=self.handleExportUsersCSV).pack(side=tk.LEFT, padx=5)
         tk.Button(top_frame, text="Export Books CSV", command=self.handleExportBooksCSV).pack(side=tk.LEFT, padx=5)
 
-        # Main frame
+        # --- Main frame: top (book screen), bottom (notifications) ---
         main_frame = tk.Frame(self.root)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # TOP (books) + BOTTOM (notifications)
-        # We'll give the top 3/4 of the space, bottom 1/4
-        top_books_frame = tk.Frame(main_frame)
-        top_books_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        # Book screen on top
+        books_frame = tk.Frame(main_frame)
+        books_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        bottom_notif_frame = tk.Frame(main_frame, height=100)
-        bottom_notif_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
+        self.create_book_screen(books_frame)
 
-        # Create the "book screen" in top_books_frame
-        self.create_book_screen(top_books_frame)
+        # Notifications screen on bottom
+        notif_frame = tk.Frame(main_frame, height=120)
+        notif_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
+        self.create_notifications_screen(notif_frame)
 
-        # Create notifications screen in bottom_notif_frame
-        self.create_notifications_screen(bottom_notif_frame)
-
+        # Initial data populate
         self.populate_book_list()
         self.refresh_notifications()
 
     def create_book_screen(self, parent):
-        """
-        Build the top book screen area:
-          - Search row, Book list + details, Lend/Return, "Apply for notifications"
-        """
-        # Search area
+        """Build the top portion: search bar, filter combo, genre combo, book list, details, Lend/Return, Apply/Remove Notifs."""
+        # Search + filter row
         search_frame = tk.Frame(parent)
         search_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
 
         tk.Label(search_frame, text="Search:").pack(side=tk.LEFT, padx=5)
-        self.search_entry = tk.Entry(search_frame, width=30)
+        self.search_entry = tk.Entry(search_frame, width=20)
         self.search_entry.pack(side=tk.LEFT, padx=5)
+
+        # Filter combobox
+        filter_options = [
+            "All Books",
+            "By Genre",
+            "Popular Books",
+            "My Books",
+            "Available Books",
+            "Not Available Books",
+            "Previously Loand",
+            "Notifications"
+        ]
+        self.filter_combobox = ttk.Combobox(search_frame, values=filter_options, state="readonly", width=15)
+        self.filter_combobox.pack(side=tk.LEFT, padx=5)
+        self.filter_combobox.set("All Books")
+        self.filter_combobox.bind("<<ComboboxSelected>>", self.on_filter_selected)
+
+        # Genre label + combobox (hidden unless "By Genre" is selected)
+        self.genre_label = tk.Label(search_frame, text="Genre:")
+        self.genre_label.pack_forget()
+
+        self.genre_combobox = ttk.Combobox(search_frame, state="disabled", width=15)
+        self.genre_combobox.pack_forget()
+        self.genre_combobox.bind("<<ComboboxSelected>>", self.on_genre_selected)
+
+        # "Apply" button to trigger search + filter
         tk.Button(search_frame, text="Apply", command=self.perform_search).pack(side=tk.LEFT, padx=5)
 
-        # Content area -> Book list, details
+        # Book list + details
         content_frame = tk.Frame(parent)
         content_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        # Book list w/ scrollbar
+        # Book list
         list_frame = tk.Frame(content_frame)
         list_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -123,7 +154,7 @@ class LibraryGUI:
         scroll_books.config(command=self.book_listbox.yview)
         self.book_listbox.bind("<<ListboxSelect>>", self.on_book_select)
 
-        # Book details + bottom row (Lend/Return + Apply)
+        # Details + buttons
         details_frame = tk.Frame(content_frame)
         details_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
@@ -133,12 +164,23 @@ class LibraryGUI:
         button_row = tk.Frame(details_frame)
         button_row.pack(side=tk.BOTTOM, anchor="s", pady=10)
 
-        if not (self.current_user is None):
+        # Remove from notifications
+        if self.current_user:
+            self.remove_notifications_button = tk.Button(
+                button_row, text="Remove from Notifications",
+                command=self.handleRemoveFromNotifications
+            )
+            self.remove_notifications_button.pack(side=tk.TOP, pady=5)
+
+        # Apply for notifications
+        if self.current_user:
             self.apply_notifications_button = tk.Button(
-                button_row, text="Apply for Notifications", command=self.handleApplyForNotifications
+                button_row, text="Apply for Notifications",
+                command=self.handleApplyForNotifications
             )
             self.apply_notifications_button.pack(side=tk.TOP, pady=5)
 
+        # Lend/Return
         if self.current_user and self.current_user.has_permission("borrow"):
             self.lend_button = tk.Button(button_row, text="Lend Book", command=self.handleLendBook)
             self.lend_button.pack(side=tk.TOP, pady=5)
@@ -148,16 +190,10 @@ class LibraryGUI:
             self.return_button.pack(side=tk.TOP, pady=5)
 
     def create_notifications_screen(self, parent):
-        """
-        Creates a smaller notifications screen with:
-          - Text widget + scrollbar
-          - A "Refresh Notifications" button in the center
-        """
-        # Expand horizontally, minimal vertical
-        parent.pack_propagate(False)  # so it doesn't expand beyond the set height
+        """Smaller notifications screen with a Text widget + scrollbar + refresh button (centered)."""
+        parent.pack_propagate(False)
         parent.update()
 
-        # Scrollbar
         notif_scroll = tk.Scrollbar(parent)
         notif_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
@@ -165,15 +201,34 @@ class LibraryGUI:
         self.notifications_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         notif_scroll.config(command=self.notifications_text.yview)
 
-        # Center the refresh button in the remaining vertical space
         refresh_button = tk.Button(parent, text="Refresh Notifications", command=self.refresh_notifications)
-        refresh_button.place(relx=0.5, rely=0.5, anchor="center")  # center in parent
+        refresh_button.place(relx=0.5, rely=0.5, anchor="center")
 
+    # ----------------- Filter / Genre ----------------- #
+    def on_filter_selected(self, event):
+        chosen_filter = self.filter_combobox.get()
+        if chosen_filter == "By Genre":
+            self.update_genre_combobox()
+            self.genre_label.pack(side=tk.LEFT, padx=5)
+            self.genre_combobox.pack(side=tk.LEFT, padx=5)
+        else:
+            self.genre_label.pack_forget()
+            self.genre_combobox.pack_forget()
+
+    def update_genre_combobox(self):
+        categories = sorted({b.category for b in self.library.books.values()})
+        self.genre_combobox.config(values=categories, state="readonly")
+        if categories:
+            self.genre_combobox.set(categories[0])
+        else:
+            self.genre_combobox.set("")
+
+    def on_genre_selected(self, event):
+        self.perform_filter()
+
+    # ----------------- Book List / Notifications Refresh ----------------- #
     def populate_book_list(self):
-        """
-        Clear + repopulate the book list.
-        If user borrowed a book, highlight it in green.
-        """
+        """Populate the book list with all library books initially."""
         self.book_listbox.delete(0, tk.END)
         for i, book in enumerate(self.library.books.values()):
             self.book_listbox.insert(tk.END, book.title)
@@ -181,13 +236,75 @@ class LibraryGUI:
                 self.book_listbox.itemconfig(i, bg="green")
 
     def refresh_notifications(self):
-        """Clear + repopulate the notifications text from self.current_user.notifications."""
         self.notifications_text.delete("1.0", tk.END)
         if self.current_user:
             for note in self.current_user.notifications:
                 self.notifications_text.insert(tk.END, note + "\n")
 
+    # ----------------- Searching / Filtering ----------------- #
+    def perform_search(self):
+        """Combine textual search with the currently chosen filter."""
+        criteria = self.search_entry.get().strip()
+
+        if criteria:
+            t_res = self.library.searchBooks(criteria, SearchByTitle())
+            a_res = self.library.searchBooks(criteria, SearchByAuthor())
+            c_res = self.library.searchBooks(criteria, SearchByCategory())
+            initial_set = set(t_res + a_res + c_res)
+        else:
+            initial_set = set(self.library.books.values())
+
+        filtered = self.apply_filter_to_books(initial_set)
+        self.update_book_list(filtered)
+
+    def perform_filter(self):
+        """Apply only the chosen filter, ignoring textual search."""
+        initial_set = set(self.library.books.values())
+        filtered = self.apply_filter_to_books(initial_set)
+        self.update_book_list(filtered)
+
+    def apply_filter_to_books(self, books_set):
+        chosen_filter = self.filter_combobox.get()
+        if chosen_filter == "All Books":
+            return books_set
+        elif chosen_filter == "By Genre":
+            if self.genre_combobox:
+                selected_genre = self.genre_combobox.get().strip()
+                if selected_genre:
+                    return {b for b in books_set if b.category == selected_genre}
+            return books_set
+        elif chosen_filter == "Popular Books":
+            return set(self.library.getPopularBooks())
+        elif chosen_filter == "My Books":
+            if self.current_user:
+                return {b for b in books_set if b in getattr(self.current_user, "borrowedBooks", [])}
+            return set()
+        elif chosen_filter == "Available Books":
+            return {b for b in books_set if b.copies > 0}
+        elif chosen_filter == "Not Available Books":
+            return {b for b in books_set if b.copies == 0}
+        elif chosen_filter == "Previously Loand":
+            if self.current_user and hasattr(self.current_user, "previously_borrowed_books"):
+                prev_ids = self.current_user.previously_borrowed_books  # e.g. [1, 10, 12]
+                return {b for b in books_set if b.id in prev_ids}
+            return set()
+        elif chosen_filter == "Notifications":
+            if self.current_user:
+                return {b for b in books_set if self.current_user in b.user_observers}
+            return set()
+        return books_set
+
+    def update_book_list(self, books_collection):
+        self.book_listbox.delete(0, tk.END)
+        # Sort by title
+        for i, book in enumerate(sorted(books_collection, key=lambda bk: bk.title)):
+            self.book_listbox.insert(tk.END, book.title)
+            if self.current_user and book in getattr(self.current_user, "borrowedBooks", []):
+                self.book_listbox.itemconfig(i, bg="green")
+
+    # ----------------- Book Selection ----------------- #
     def on_book_select(self, event):
+        """Show details for the selected book, highlight Return button if user has borrowed it."""
         selection = event.widget.curselection()
         if not selection:
             return
@@ -215,23 +332,7 @@ class LibraryGUI:
 
         self.details_label.config(text=details)
 
-    def perform_search(self):
-        criteria = self.search_entry.get().strip()
-        if not criteria:
-            self.populate_book_list()
-            return
-
-        title_results = self.library.searchBooks(criteria, SearchByTitle())
-        author_results = self.library.searchBooks(criteria, SearchByAuthor())
-        category_results = self.library.searchBooks(criteria, SearchByCategory())
-
-        all_results = set(title_results + author_results + category_results)
-        self.book_listbox.delete(0, tk.END)
-        for i, book in enumerate(all_results):
-            self.book_listbox.insert(tk.END, book.title)
-            if self.current_user and book in getattr(self.current_user, "borrowedBooks", []):
-                self.book_listbox.itemconfig(i, bg="green")
-
+    # ----------------- Button Handlers (Add/Remove, Lend/Return, Notifs) ----------------- #
     def handleAddBook(self):
         if not self.current_user:
             messagebox.showwarning("Warning", "You must be logged in to add books.")
@@ -274,9 +375,10 @@ class LibraryGUI:
                 copies = int(copies_ent.get().strip())
                 book = Book.createBook(title, author, year, genre, copies)
                 self.library.addBook(book, self.current_user)
-                self.populate_book_list()
                 self.logger.log(f"{self.current_user.username} added '{title}'.")
                 messagebox.showinfo("Success", f"Book '{title}' added.")
+                # Refresh filter or default list
+                self.perform_search()
                 add_win.destroy()
             except ValueError:
                 messagebox.showerror("Error", "Numeric values required for year/copies.")
@@ -315,9 +417,10 @@ class LibraryGUI:
                 return
             try:
                 self.library.removeBook(book, self.current_user)
-                self.populate_book_list()
                 self.logger.log(f"{self.current_user.username} removed '{title}'.")
                 messagebox.showinfo("Success", f"Book '{title}' removed.")
+                # Refresh filter or default list
+                self.perform_search()
                 remove_win.destroy()
             except PermissionDeniedException:
                 messagebox.showerror("Error", "No permission to remove books.")
@@ -336,14 +439,16 @@ class LibraryGUI:
         if not sel:
             messagebox.showinfo("Info", "Select a book from the list first.")
             return
+
         idx = sel[0]
         btitle = self.book_listbox.get(idx)
         book = next((b for b in self.library.books.values() if b.title == btitle), None)
         if book:
             success = self.library.lendBook(self.current_user, book)
             if success:
-                self.populate_book_list()
+                self.logger.log(f"{self.current_user.username} borrowed '{btitle}'.")
                 messagebox.showinfo("Success", f"You borrowed '{btitle}'.")
+                self.perform_search()
             else:
                 messagebox.showwarning("Warning", f"No copies available for '{btitle}'. Subscribed for notifications.")
 
@@ -357,21 +462,22 @@ class LibraryGUI:
 
         sel = self.book_listbox.curselection()
         if not sel:
-            messagebox.showinfo("Info", "Select a book from the list first.")
+            messagebox.showinfo("Info", "Select a book first.")
             return
+
         idx = sel[0]
         btitle = self.book_listbox.get(idx)
         book = next((b for b in self.library.books.values() if b.title == btitle), None)
         if book:
             success = self.library.returnBook(self.current_user, book)
             if success:
-                self.populate_book_list()
+                self.logger.log(f"{self.current_user.username} returned '{btitle}'.")
                 messagebox.showinfo("Success", f"You returned '{btitle}'.")
+                self.perform_search()
             else:
                 messagebox.showerror("Error", f"You do not have '{btitle}' borrowed.")
 
     def handleApplyForNotifications(self):
-        """Attach current user as observer to the selected book."""
         if not self.current_user:
             messagebox.showwarning("Warning", "Must be logged in to apply for notifications.")
             return
@@ -383,8 +489,29 @@ class LibraryGUI:
         btitle = self.book_listbox.get(idx)
         book = next((b for b in self.library.books.values() if b.title == btitle), None)
         if book:
-            book.attach(self.current_user)
-            messagebox.showinfo("Info", f"You subscribed to notifications for '{btitle}'.")
+            if self.current_user in book.user_observers:
+                messagebox.showinfo("Info", f"You are already subscribed to '{btitle}'.")
+            else:
+                book.attach(self.current_user)
+                messagebox.showinfo("Info", f"You subscribed to notifications for '{btitle}'.")
+
+    def handleRemoveFromNotifications(self):
+        if not self.current_user:
+            messagebox.showwarning("Warning", "Must be logged in to remove notifications.")
+            return
+        sel = self.book_listbox.curselection()
+        if not sel:
+            messagebox.showinfo("Info", "Select a book first.")
+            return
+        idx = sel[0]
+        btitle = self.book_listbox.get(idx)
+        book = next((b for b in self.library.books.values() if b.title == btitle), None)
+        if book:
+            if self.current_user in book.user_observers:
+                book.detach(self.current_user)
+                messagebox.showinfo("Info", f"You were removed from notifications for '{btitle}'.")
+            else:
+                messagebox.showinfo("Info", f"You were not subscribed to '{btitle}' notifications.")
 
     def handleLogin(self):
         from login_gui import LoginGUI
@@ -403,9 +530,8 @@ class LibraryGUI:
             messagebox.showinfo("Logout", "Guest session ended.")
         self.root.destroy()
 
-    # ------------------ Export CSV Handlers ------------------ #
+    # ------------- Export CSV -------------
     def handleExportUsersCSV(self):
-        """Open file dialog, then call library.export_users_to_csv."""
         csv_path = filedialog.asksaveasfilename(
             title="Export Users CSV",
             defaultextension=".csv",
@@ -420,7 +546,6 @@ class LibraryGUI:
             messagebox.showerror("Error", f"Failed to export users CSV: {e}")
 
     def handleExportBooksCSV(self):
-        """Open file dialog, then call library.export_books_to_csv."""
         csv_path = filedialog.asksaveasfilename(
             title="Export Books CSV",
             defaultextension=".csv",

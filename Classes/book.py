@@ -43,11 +43,12 @@ class Book(Subject):
         return Book(title, author, year, category, copies)
 
     @staticmethod
-    def loaded_book(title: str, author: str, year: int, category: str, copies: int, prev_id, followers_ids : List[int]) -> 'Book':
+    def loaded_book(title: str, author: str, year: int, category: str, copies: int, prev_id, followers_ids : List[int], borrow_count : int) -> 'Book':
         new_book =  Book(title, author, year, category, copies)
         new_book.set_id(prev_id)
         Book.book_ids.append(new_book.id)
         new_book.temp_followers = followers_ids
+        new_book.borrow_count = borrow_count
         return new_book
 
     # Subject interface methods
@@ -85,9 +86,15 @@ class Book(Subject):
     @staticmethod
     def from_json(json: dict[str, Any]):
         return Book.loaded_book(title= json["title"], author= json["author"], category=json["category"],
-                                copies=json["copies"], prev_id = json["id"], year=json["year"], followers_ids=json["user_observers"])
+                                copies=json["copies"], prev_id = json["id"], year=json["year"],
+                                followers_ids=json["user_observers"],borrow_count=json["borrow_count"])
 
 
     def set_id(self, id: int):
         self.id = id
+
+    def set_borrow_count(self, count: int):
+        self.borrow_count = count
+
+
 

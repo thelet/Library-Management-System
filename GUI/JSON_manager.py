@@ -10,7 +10,8 @@ user_headers_mapping = {
     "username": "username",
     "passwordHash": "password",
     "borrowed_books" : "borrowed_books"  ,
-    "role": "role"
+    "role": "role",
+    "previously_borrowed_books" : "previously_borrowed_books"
 }
 
 book_headers_mapping = {
@@ -21,7 +22,8 @@ book_headers_mapping = {
     "category": "genre",
     "copies": "copies",
     "isLoaned": "is_loaned",
-    "user_observers": "followers_ids"
+    "user_observers": "followers_ids",
+    "borrow_count": "borrow_count"
 }
 
 
@@ -37,7 +39,7 @@ def write_json_obj(obj_list : 'Book' or 'User', json_root :str, obj_name :str):
     :param root_dir: The path to the existing root directory.
     """
     # Name for the new subdirectory
-    new_dir_name = f"{obj_name}_json_" + str(count_runs)
+    new_dir_name = f"{obj_name}_json"
 
     # Construct full path for the new directory
     new_dir_path = os.path.join(json_root, new_dir_name)
@@ -218,7 +220,7 @@ def csv_to_individual_json_files(csv_file_path, headers_mapping, output_dir, id_
     :return: None
     """
 
-    keys_to_list = ["user_observers", "borrowed_books"]
+    keys_to_list = ["user_observers", "borrowed_books", "previously_borrowed_books"]
     # Ensure the output directory exists
     os.makedirs(output_dir, exist_ok=True)
 
@@ -361,12 +363,98 @@ def csv_test_main():
     for user in user_dict.values():
         print(f"\nid: {user.id} \nborrowed_books: \n{[book.id for book in user.borrowedBooks]}\ntemp books: \n{user.temp_borrowedBooks}")
 
+def test_new_list():
+    from Classes.library import Library
+
+    book1 = Book.createBook("title1", "author1", 2001, "category1", 1)
+    book2 = Book.createBook("title2", "author2", 2002, "category2", 2)
+    book3 = Book.createBook("title3", "author3", 2003, "category3", 3)
+    book4 = Book.createBook("title4", "author4", 2004, "category4", 4)
+    book5 = Book.createBook("title5", "author5", 2005, "category5", 5)
+    book11 =Book.createBook("title6", "author1", 2006, "category6", 6)
+    book12 = Book.createBook("title7", "author7", 2007, "category1", 7)
+    book13 = Book.createBook("title8", "author1", 2008, "category1", 3)
+    book14 = Book.createBook("title1", "author8", 2003, "category8", 3)
+    book9 = Book.createBook("title9", "author1", 2001, "category1", 1)
+    book10 = Book.createBook("title10", "author2", 2002, "category2", 2)
+    book15 = Book.createBook("title11", "author3", 2003, "category3", 3)
+    book16 =Book.createBook("title16", "author1", 2006, "category6", 6)
+    book17 = Book.createBook("title17", "author7", 2007, "category1", 7)
+    book18 = Book.createBook("title18", "author1", 2008, "category1", 3)
+    books = [book1, book2, book3, book4, book5, book11, book12, book13, book14, book9, book10, book15, book16, book17, book18]
+
+    user1 = User.create_user(username="user1", passwordHash="password1")
+    user2 = User.create_user(username="user2", passwordHash="password2")
+    user3 = Librarian.create_librarian(username="user3", passwordHash="password3")
+    user4 = User.create_user(username="user4", passwordHash="password4")
+    users = [user1, user2, user3, user4]
+
+    book3.attach(user1)
+    book3.attach(user2)
+    book4.attach(user3)
+    book3.attach(user4)
+    book5.attach(user1)
+    user1.borrowedBooks.append(book5)
+    user1.borrowedBooks.append(book17)
+    user1.borrowedBooks.append(book11)
+    user1.borrowedBooks.append(book4)
+    user3.borrowedBooks.append(book3)
+    user3.borrowedBooks.append(book9)
+    user2.borrowedBooks.append(book4)
+    user2.borrowedBooks.append(book3)
+    book5.set_borrow_count(7)
+    book17.set_borrow_count(1)
+    book11.set_borrow_count(1)
+    book4.set_borrow_count(2)
+    book1.set_borrow_count(9)
+    book2.set_borrow_count(8)
+    book3.set_borrow_count(6)
+    book9.set_borrow_count(1)
+    book10.set_borrow_count(10)
+    book15.set_borrow_count(13)
+    book16.set_borrow_count(16)
+    book18.set_borrow_count(1)
+    for user in users:
+        print(user)
+
+    user1.returnBook(book5)
+    user2.returnBook(book3)
+    user1.returnBook(book4)
+
+    for user in users:
+        print(f"id: {user.id} | borrowed_books: {[book.id for book in user.borrowedBooks]} | previously borrowed {user.previously_borrowed_books}\n")
+
+    json_root = r"C:\Users\thele\Documents\PythonProject\oop_ex_3\data_files\JSON_data"
+    csv_root = r"C:\Users\thele\Documents\PythonProject\oop_ex_3\data_files\CSV_data"
+    write_json_obj(users, json_root, "users")
+    write_json_obj(books, json_root, "books")
+    json_users = os.path.join(json_root, "users_json")
+    json_books = os.path.join(json_root, "books_json")
+    jsons_to_csv_with_mapping(json_users, os.path.join(csv_root, "users_1.csv"), user_headers_mapping)
+    jsons_to_csv_with_mapping(json_books, os.path.join(csv_root, "books_1.csv"), book_headers_mapping)
+    json_users = os.path.join(json_root, "users_json_from_csv")
+    json_books = os.path.join(json_root, "books_json_from_csv")
+    csv_to_individual_json_files(os.path.join(csv_root, "users_1.csv"), user_headers_mapping, json_users)
+    csv_to_individual_json_files(os.path.join(csv_root, "books_1.csv"), book_headers_mapping, json_books)
+    books_dict = load_objs_from_json(json_books, "books")
+    users_dict = load_objs_from_json(json_users, "users")
+    reattached_observers(books_dict, users_dict)
+    reconnect_borrowed_books(users_dict, books_dict)
+    for user in users_dict.values():
+        print(f"id: {user.id} | borrowed_books: {[book.id for book in user.borrowedBooks]} "
+              f"| previously borrowed {user.previously_borrowed_books} | temp books: {user.temp_borrowedBooks}\n")
+
+    for book in books_dict.values():
+        print(book)
+
+
 
 if __name__ == '__main__':
     from Classes.book import Book
     from Classes.user import User, Librarian
-    json_test_main()
-    csv_test_main()
+    test_new_list()
+
+
 
 
 

@@ -91,9 +91,15 @@ class Library(Subject, Observer):
         print(f"Book '{book.title}' updated in the library.")
         self.notifyObservers(f"Book updated: '{book.title}'.")
 
-    # ------------- Searching -------------
+    # ----------- Searching and Filters-------------
     def searchBooks(self, criteria: str, strategy: SearchStrategy) -> List[Book]:
         return strategy.search(self.books.values(), criteria)
+    def getPopularBooks(self):
+        sorted_books = sorted(self.books.values(), key=lambda book: book.borrow_count, reverse=True)
+        print("books sorted by borrow_count:")
+        for book in sorted_books:
+            print(f"{book.title} - borrow_count: {book.borrow_count}")
+        return sorted_books[:10]
 
     # ------------- Lending / Returning -------------
     def lendBook(self, user: 'User', book: Book) -> bool:
@@ -103,6 +109,7 @@ class Library(Subject, Observer):
         if book.copies > 0:
             user.borrowBook(book)
             book.updateCopies(-1)
+            book.borrow_count += 1
             self.notifyObservers(f"{user.username} borrowed '{book.title}'.")
             return True
         else:
@@ -185,11 +192,22 @@ class Library(Subject, Observer):
 
     def to_json(self) -> dict:
         return {
-            "books": [b.to_json() for b in self.books],
-            "users": [u.to_json() for u in self.users],
-            "librarian_users": [l.to_json() for l in self.librarian_users]
+            "books": [b.to_json() for b in self.books.values()],
+            "users": [u.to_json() for u in self.users.values()]
             # ...other fields
         }
+
+    def export_users_to_csv(self, csv_path):
+        root_dir = os.path.join(Library.json_dirs, "exported_users")
+        JS_mng.write_json_obj(self.users.values(), root_dir, "users")
+        JS_mng.jsons_to_csv_with_mapping(os.path.join(root_dir, "users_json"), csv_path , JS_mng.user_headers_mapping)
+        print(f"Exported users to {csv_path}.")
+
+    def export_books_to_csv(self,csv_path):
+        root_dir = os.path.join(Library.json_dirs, "exported_books")
+        JS_mng.write_json_obj(self.books.values(), root_dir, "books")
+        JS_mng.jsons_to_csv_with_mapping(os.path.join(root_dir, "books_json"), csv_path, JS_mng.book_headers_mapping)
+        print(f"Exported users to {csv_path}.")
 
     def export_data_to_csv(self, books_csv_path: str, users_csv_path: str):
         """

@@ -31,6 +31,7 @@ class User(Observer, Subject):
         self._observers: List[Observer] = []  # Observers observing this user
         self.role = "regular user"
         self.notifications : list[str] = []
+        self.__previously_borrowed_books : list[int] = []
 
     @property
     def name(self) -> str:
@@ -39,6 +40,10 @@ class User(Observer, Subject):
     @property
     def borrowedBooks(self) -> List[Book]:
         return self._borrowedBooks
+
+    @property
+    def previously_borrowed_books(self) -> List[int]:
+        return self.__previously_borrowed_books
 
     @property
     def passwordHash(self) -> str:
@@ -80,7 +85,8 @@ class User(Observer, Subject):
 
     def __str__(self):
         return (f"user id = {self.id} | username: {self.username} | password: {self.passwordHash} | role: {self.role} |"
-                f" borrowed books ids: {[book.id for book in self.borrowedBooks]}\n")
+                f" borrowed books ids: {[book.id for book in self.borrowedBooks]} "
+                f"| past borrowed books if: {[self.__previously_borrowed_books]}\n")
 
     @staticmethod
     def create_user(username: str, passwordHash: str, permissions: List[str] = None):
@@ -90,11 +96,13 @@ class User(Observer, Subject):
         return User(username, passwordHash, permissions)
 
     @staticmethod
-    def loaded_user(username: str, passwordHash: str, prev_id : int,  permissions: List[str] = None, temp_books : List[int] = None) -> 'User':
+    def loaded_user(username: str, passwordHash: str, prev_id : int,  permissions: List[str] = None,
+                    temp_books : List[int] = None, prev_borrowed :List[int] = None) -> 'User':
         new_user = User(username=username, passwordHash=passwordHash, permissions=permissions)
         new_user.id = prev_id
         User.users_ids.append(new_user.id)
         new_user.temp_borrowedBooks = temp_books
+        new_user.previously_borrowed_books = prev_borrowed
         return new_user
 
     def has_permission(self, permission: str) -> bool:
@@ -126,7 +134,6 @@ class User(Observer, Subject):
             library = Library.getInstance()
             library.notifyObservers(f"{self.username} borrowed '{book.title}'.")
             print(f"{self.username} borrowed '{book.title}'.")
-            book.borrow_count += 1
         else:
             print(f"No copies available for '{book.title}'. {self.username} can subscribe for notifications.")
             book.attach(self)
@@ -140,6 +147,7 @@ class User(Observer, Subject):
             book.updateCopies(1)
             self._borrowedBooks.remove(book)
             book.detach(self)
+            self.__previously_borrowed_books.append(book.id)
             from Classes.library import Library
             library = Library.getInstance()
             library.notifyObservers(f"{self.username} returned '{book.title}'.")
@@ -175,13 +183,15 @@ class User(Observer, Subject):
         Returns a JSON-serializable dict of the user data.
         """
         temp_books = [book.id for book in self._borrowedBooks]
+        prev_borrowed = [book_id for book_id in self.__previously_borrowed_books]
 
         return {
             "id": self.id,
             "username": self.username,
             "passwordHash": self.__passwordHash,
             "role" : self.role,
-            "borrowed_books": temp_books
+            "borrowed_books": temp_books,
+            "previously_borrowed_books": prev_borrowed
             #"borrowedBooks": [book.to_json() for book in self._borrowedBooks],
             #"observers": [obs.to_json() for obs in self._observers],
         }
@@ -189,8 +199,8 @@ class User(Observer, Subject):
     @staticmethod
     def from_json(json: dict[str, Any]):
         if json["role"] == "regular user":
-            print(f"loaded books: {json['borrowed_books']}")
-            return User.loaded_user(username=str(json["username"]), passwordHash=str(json["passwordHash"]), prev_id=int(json["id"]), temp_books=json["borrowed_books"])
+            return User.loaded_user(username=str(json["username"]), passwordHash=str(json["passwordHash"]),
+                                    prev_id=int(json["id"]), temp_books=json["borrowed_books"], prev_borrowed = json["previously_borrowed_books"])
 
         elif json["role"] == "librarian":
             return Librarian.from_json_librarian(json)
@@ -208,6 +218,16 @@ class User(Observer, Subject):
     @borrowedBooks.setter
     def borrowedBooks(self, value):
         self._borrowedBooks = value
+
+    @previously_borrowed_books.setter
+    def previously_borrowed_books(self, value):
+        if value is None:
+            value = []
+        elif not isinstance(value, list):
+            raise ValueError(f"previously_borrowed_books must be a list")
+        self.__previously_borrowed_books.clear()
+        for val in value:
+            self.__previously_borrowed_books.append(val)
 
 
 class Librarian(User):
@@ -239,7 +259,8 @@ class Librarian(User):
 
     @staticmethod
     def from_json_librarian(json : dict[str, Any]):
-        basic_user = User.loaded_user(username=str(json["username"]), passwordHash=str(json["passwordHash"]), prev_id=int(json["id"]), temp_books=json["borrowed_books"])
+        basic_user = User.loaded_user(username=str(json["username"]), passwordHash=str(json["passwordHash"]),
+                                      prev_id=int(json["id"]), temp_books=json["borrowed_books"], prev_borrowed = json["previously_borrowed_books"])
         basic_user.permissions = LIBRARIAN_DEFAULT_PERMISSIONS
         basic_user.role = "librarian"
         return basic_user

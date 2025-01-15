@@ -66,7 +66,7 @@ class LoginGUI:
         if any(l.username == username for l in self.library.users.values()):
             messagebox.showerror("Error", "Librarian username already exists.")
             return
-        librarian = Librarian(username, password)
+        librarian = Librarian.create_librarian(username, password)
         librarian_id = librarian.id
         self.library.users[librarian_id] = librarian
         messagebox.showinfo("Success", f"Librarian '{username}' created.")
@@ -81,7 +81,7 @@ class LoginGUI:
         if any(u.username == username for u in self.library.users.values()):
             messagebox.showerror("Error", "User username already exists.")
             return
-        user = User(username, password)  # Default permissions: ["borrow", "return"]
+        user = User.create_user(username, password) # Default permissions: ["borrow", "return"]
         user_id = user.id
         self.library.users[user_id] = user
         messagebox.showinfo("Success", f"User '{username}' created.")
