@@ -18,12 +18,21 @@ class Book(Subject):
         self.borrow_count = 0  # To track popularity
         self.temp_followers = None
 
+
+
     def __str__(self):
         return (f'book id: {self.id} | title: {self.title} | author: {self.author} | year: {self.year} | category: {self.category}'
                 f' | followers users ids: {[user.id for user in self.user_observers]}\n')
 
-    def getDetails(self) -> str:
-        return f"'{self.title}' by {self.author}, {self.year} - {self.category} ({self.copies} copies available)"
+    def getDetails(self) -> dict[str, Any]:
+        details = {
+            "Title": self.title,
+            "Author": self.author,
+            "Year": self.year,
+            "Genre": self.category,
+            "Available Copies": self.copies
+        }
+        return details
 
     def updateCopies(self, count: int):
         previous_copies = self.copies

@@ -15,3 +15,7 @@ class BookNotFoundException(LibraryException):
     def __init__(self, book_title):
         self.book_title = book_title
         super().__init__(f"Book '{self.book_title}' not found.")
+
+class SignUpError(LibraryException):
+    def __init__(self, missing_fields = None):
+        super().__init__(f"missing required fields : {missing_fields}")

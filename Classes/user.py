@@ -2,6 +2,7 @@
 from typing import List, Any
 from observer import Observer, Subject
 from Classes.book import Book
+from function_decorator import permission_required
 
 # Default permissions
 USER_DEFAULT_PERMISSIONS = ["borrow", "return"]
@@ -111,17 +112,7 @@ class User(Observer, Subject):
         """
         return permission in self.__permissions
 
-    def register(self, password: str):
-        # Registration logic (could be hashing password, storing user data, etc.)
-        print(f"{self.username} has registered.")
-        self.notifyObservers(f"User registered: {self.username}")
-
-    def login(self, password: str) -> bool:
-        # Login logic (verifying password, etc.)
-        print(f"{self.username} has logged in.")
-        self.notifyObservers(f"User logged in: {self.username}")
-        return True  # For real usage, verify password properly
-
+    @permission_required("borrow")
     def borrowBook(self, book: Book):
         """
         Borrow the specified book if copies are available.
@@ -129,15 +120,12 @@ class User(Observer, Subject):
         """
         if book.copies > 0:
             self._borrowedBooks.append(book)
-            book.attach(self)
-            from Classes.library import Library
-            library = Library.getInstance()
-            library.notifyObservers(f"{self.username} borrowed '{book.title}'.")
             print(f"{self.username} borrowed '{book.title}'.")
         else:
             print(f"No copies available for '{book.title}'. {self.username} can subscribe for notifications.")
             book.attach(self)
 
+    @permission_required("return")
     def returnBook(self, book: Book):
         """
         Return the specified book if the user actually has it borrowed.
@@ -192,8 +180,6 @@ class User(Observer, Subject):
             "role" : self.role,
             "borrowed_books": temp_books,
             "previously_borrowed_books": prev_borrowed
-            #"borrowedBooks": [book.to_json() for book in self._borrowedBooks],
-            #"observers": [obs.to_json() for obs in self._observers],
         }
 
     @staticmethod
@@ -241,6 +227,7 @@ class Librarian(User):
             passwordHash,
             permissions or LIBRARIAN_DEFAULT_PERMISSIONS
         )
+        self.role = "librarian"
 
     @staticmethod
     def create_librarian(username: str, passwordHash: str, permissions: List[str] = None):

@@ -4,11 +4,11 @@ import json
 import csv
 import os
 from typing import List, Optional
-
+from function_decorator import permission_required
 from observer import Subject, Observer
 from Classes.book import Book
 from strategy import SearchStrategy
-from exceptions import LibraryException, PermissionDeniedException, BookNotFoundException
+from exceptions import LibraryException, PermissionDeniedException, BookNotFoundException, SignUpError
 import GUI.JSON_manager as JS_mng
 from GUI.JSON_manager import *
 
@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from user import User, Librarian
+    from decorator import BookDecorator
 
 
 class Library(Subject, Observer):
@@ -36,8 +37,8 @@ class Library(Subject, Observer):
         # Collections
         self.books: dict[int, 'Book'] = {}
         self.users: dict[int ,'User'] = {}
-        #self.librarian_users: List['Librarian'] = []
-        self.books_observers: List[Observer] = []
+        self.decorated_books: dict[int, 'BookDecorator'] = {}
+        self.librarian_observers: List[Observer] = []
 
         Library.__instance = self
 
@@ -52,9 +53,40 @@ class Library(Subject, Observer):
         return "Library"
 
     def has_permission(self, permission: str) -> bool:
-        return permission in ["borrow", "return", "manage_books"]
+        permissions = ["borrow", "return", "manage_books", "manage_users"]
+        return permission in permissions
+
+    # ------------- Users Management -------------
+    @permission_required("manage_users")
+    def validateSignUp(self, user_params : dict[str,Any]):
+        required_fields = ["username", "password", "role"]
+        if required_fields.sort() != list(user_params.keys()).sort():
+            raise SignUpError([param for param in required_fields if param not in user_params.keys()])
+        elif any(user.username == user_params["username"] for user in self.users.values()):
+            raise SignUpError(f"Username '{user_params['username']}' is already taken.")
+
+    @permission_required("manage_users")
+    def signUp(self, user_params : dict[str,Any]):
+        from Classes.user import User, Librarian
+        user = None
+        self.validateSignUp(user_params)
+        if user_params["role"] == "regular user":
+            user = User.create_user(user_params["username"], user_params["password"])
+        elif user_params["role"] == "librarian":
+            user = Librarian.create_librarian(user_params["username"], user_params["password"])
+            self.attach(user)
+        if user is not None:
+            user_id = user.id
+            self.users[user_id] = user
+            self.notifyObservers(f"new {user_params["role"]} with username: {user.username} signed up successfully.")
+            return user
+        else:
+            raise SignUpError("Something went wrong during sign up. Please try again.")
+
+
 
     # ------------- Book Management -------------
+    @permission_required("manage_books")
     def addBook(self, book: Book, caller: Optional['User'] = None):
         """
         If 'caller' is a librarian or has 'manage_books', add the book.
@@ -67,6 +99,7 @@ class Library(Subject, Observer):
         print(f"Book '{book.title}' added to the library.")
         self.notifyObservers(f"New book added: '{book.title}' by {book.author}.")
 
+    @permission_required("manage_books")
     def removeBook(self, book: Book, caller: Optional['User'] = None):
         """
         Removes a book if caller is librarian or has 'manage_books'.
@@ -81,6 +114,7 @@ class Library(Subject, Observer):
         else:
             raise BookNotFoundException(book.title)
 
+    @permission_required("manage_books")
     def updateBook(self, book: Book, caller: Optional['User'] = None):
         """
         Placeholder to update book details if caller has manage_books.
@@ -102,6 +136,7 @@ class Library(Subject, Observer):
         return sorted_books[:10]
 
     # ------------- Lending / Returning -------------
+    @permission_required("borrow")
     def lendBook(self, user: 'User', book: Book) -> bool:
         """
         Let user borrow if copies > 0.
@@ -117,6 +152,7 @@ class Library(Subject, Observer):
             book.attach(user)
             return False
 
+    @permission_required("return")
     def returnBook(self, user: 'User', book: Book) -> bool:
         """
         Let user return if they do indeed have it.
@@ -131,17 +167,17 @@ class Library(Subject, Observer):
 
     # ------------- Subject Implementation -------------
     def attach(self, observer: Observer):
-        if observer not in self.books_observers:
-            self.books_observers.append(observer)
+        if observer not in self.librarian_observers:
+            self.librarian_observers.append(observer)
             print(f"{observer.name} is now observing the library.")
 
     def detach(self, observer: Observer):
-        if observer in self.books_observers:
-            self.books_observers.remove(observer)
+        if observer in self.librarian_observers:
+            self.librarian_observers.remove(observer)
             print(f"{observer.name} has stopped observing the library.")
 
     def notifyObservers(self, notification: str):
-        for obs in self.books_observers:
+        for obs in self.librarian_observers:
             obs.update(notification)
 
     # ------------- Observer Implementation -------------
@@ -167,9 +203,9 @@ class Library(Subject, Observer):
             JS_mng.reattached_observers(self.books, self.users)
 
         for user in self.users.values():
+            if user.role == "librarian":
+                self.attach(user)
             print(user)
-
-
 
     def load_books_from_csv(self, csv_file_path: str):
         print("loading books from CSV...")
@@ -186,17 +222,6 @@ class Library(Subject, Observer):
         for book in self.books.values():
             print(book)
 
-
-
-
-
-    def to_json(self) -> dict:
-        return {
-            "books": [b.to_json() for b in self.books.values()],
-            "users": [u.to_json() for u in self.users.values()]
-            # ...other fields
-        }
-
     def export_users_to_csv(self, csv_path):
         root_dir = os.path.join(Library.json_dirs, "exported_users")
         JS_mng.write_json_obj(self.users.values(), root_dir, "users")
@@ -207,62 +232,13 @@ class Library(Subject, Observer):
         root_dir = os.path.join(Library.json_dirs, "exported_books")
         JS_mng.write_json_obj(self.books.values(), root_dir, "books")
         JS_mng.jsons_to_csv_with_mapping(os.path.join(root_dir, "books_json"), csv_path, JS_mng.book_headers_mapping)
-        print(f"Exported users to {csv_path}.")
+        print(f"Exported books to {csv_path}.")
 
-    def export_data_to_csv(self, books_csv_path: str, users_csv_path: str):
-        """
-        Exports the current library books and users to two CSV files.
-        :param books_csv_path: Destination CSV path for books
-        :param users_csv_path: Destination CSV path for users
-        """
-        # 1) Export Books
-        try:
-            import csv
-            with open(books_csv_path, mode="w", newline="", encoding="utf-8") as books_file:
-                writer = csv.writer(books_file)
-                writer.writerow(["title", "author","is_loaned", "copies", "genre", "year", ])
-                for book in self.books:
-                    is_loaned = "Yes" if book.isLoaned else "No"
-                    writer.writerow([
-                        book.title,
-                        book.author,
-                        is_loaned,
-                        book.copies,
-                        book.category,
-                        book.year
-                    ])
-            print(f"Books exported to {books_csv_path}.")
-        except Exception as e:
-            print(f"Failed to export books: {e}")
-            raise
-
-        # 2) Export Users (regular + librarians)
-        try:
-            import csv
-            with open(users_csv_path, mode="w", newline="", encoding="utf-8") as users_file:
-                writer = csv.writer(users_file)
-                writer.writerow(["username", "passwordHash", "role", "permissions"])
-                # Export regular users
-                for user in self.users:
-                    role = "user"
-                    writer.writerow([
-                        user.username,
-                        user.passwordHash,
-                        role,
-                        ",".join(user.permissions)
-                    ])
-                # Export librarians
-                for librarian in self.librarian_users:
-                    role = "librarian"
-                    writer.writerow([
-                        librarian.username,
-                        librarian.passwordHash,
-                        role,
-                        ",".join(librarian.permissions)
-                    ])
-            print(f"Users exported to {users_csv_path}.")
-        except Exception as e:
-            print(f"Failed to export users: {e}")
-            raise
+    def to_json(self) -> dict:
+        return {
+            "books": [b.to_json() for b in self.books.values()],
+            "users": [u.to_json() for u in self.users.values()]
+            # ...other fields
+        }
 
 

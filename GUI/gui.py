@@ -5,6 +5,7 @@ from typing import Optional
 from Classes.library import Library
 from Classes.user import User, Librarian
 from Classes.book import Book
+from decorator import DescriptionDecorator, CoverDecorator
 from logger import Logger
 from strategy import SearchByTitle, SearchByAuthor, SearchByCategory
 from exceptions import PermissionDeniedException
@@ -304,6 +305,7 @@ class LibraryGUI:
 
     # ----------------- Book Selection ----------------- #
     def on_book_select(self, event):
+        from JSON_manager import format_json_dict
         """Show details for the selected book, highlight Return button if user has borrowed it."""
         selection = event.widget.curselection()
         if not selection:
@@ -313,14 +315,15 @@ class LibraryGUI:
         book = next((b for b in self.library.books.values() if b.title == btitle), None)
         if not book:
             return
+        if book.id in self.library.decorated_books:
+            book = self.library.decorated_books.get(book.id)
 
-        details = (
-            f"Title: {book.title}\n"
-            f"Author: {book.author}\n"
-            f"Year: {book.year}\n"
-            f"Genre: {book.category}\n"
-            f"Available Copies: {book.copies}"
-        )
+        book_details = book.getDetails()
+        if "cover_image" in book_details and book_details["cover_image"]:
+            self.display_cover_image(book_details["cover_image"])
+            book_details.pop("cover_image")
+
+        details = format_json_dict(book_details)
 
         if self.current_user and book in getattr(self.current_user, "borrowedBooks", []):
             details += "\nYou have borrowed this book."
@@ -331,6 +334,32 @@ class LibraryGUI:
                 self.return_button.config(bg="SystemButtonFace")
 
         self.details_label.config(text=details)
+
+    # ----------------- handles image decorator----------------- #
+    def display_cover_image(self, image_path):
+        """
+        Display a cover image in the details_label frame.
+        :param image_path: Path to the image file
+        """
+        try:
+            from PIL import Image, ImageTk
+
+            # Load and resize the image for display
+            pil_img = Image.open(image_path)
+            pil_img = pil_img.resize((150, 200))  # Resize to fit nicely
+            img = ImageTk.PhotoImage(pil_img)
+
+            # Check if a previous image exists, remove it
+            if hasattr(self, "cover_image_label"):
+                self.cover_image_label.destroy()
+
+            # Create a new label to display the image
+            self.cover_image_label = tk.Label(self.details_label, image=img)
+            self.cover_image_label.image = img  # Keep a reference
+            self.cover_image_label.pack(side=tk.RIGHT, padx=5, pady=5)
+
+        except Exception as e:
+            print(f"Failed to load cover image: {e}")
 
     # ----------------- Button Handlers (Add/Remove, Lend/Return, Notifs) ----------------- #
     def handleAddBook(self):
@@ -343,6 +372,9 @@ class LibraryGUI:
 
         add_win = tk.Toplevel(self.root)
         add_win.title("Add Book")
+
+        # Initialize image_path variable
+        image_path = tk.StringVar(value="")
 
         tk.Label(add_win, text="Title:").grid(row=0, column=0, padx=5, pady=5)
         title_ent = tk.Entry(add_win)
@@ -364,6 +396,23 @@ class LibraryGUI:
         copies_ent = tk.Entry(add_win)
         copies_ent.grid(row=4, column=1, padx=5, pady=5)
 
+        tk.Label(add_win, text="Description (Optional):").grid(row=5, column=0, padx=5, pady=5)
+        description_ent = tk.Entry(add_win)
+        description_ent.grid(row=5, column=1, padx=5, pady=5)
+
+        # Add Book Image (Optional) Button
+        def choose_image():
+            file_path = filedialog.askopenfilename(
+                title="Select Book Cover Image",
+                filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.gif;*.bmp"), ("All Files", "*.*")]
+            )
+            if file_path:
+                image_path.set(file_path)
+
+        tk.Button(add_win, text="Add Book Image (Optional)", command=choose_image).grid(row=6, column=0, columnspan=2,
+                                                                                        pady=10)
+
+
         def confirm_add():
             from Classes.book import Book
 
@@ -375,6 +424,14 @@ class LibraryGUI:
                 copies = int(copies_ent.get().strip())
                 book = Book.createBook(title, author, year, genre, copies)
                 self.library.addBook(book, self.current_user)
+                if description_ent.get().strip():
+                    description_decorated = DescriptionDecorator(book, description_ent.get().strip())
+                    self.library.decorated_books[book.id] = description_decorated
+                # Add cover decorator if image_path is set
+                if image_path.get():
+                    cover_decorated = CoverDecorator(book, image_path.get())
+                    self.library.decorated_books[book.id] =cover_decorated
+
                 self.logger.log(f"{self.current_user.username} added '{title}'.")
                 messagebox.showinfo("Success", f"Book '{title}' added.")
                 # Refresh filter or default list
@@ -385,7 +442,7 @@ class LibraryGUI:
             except PermissionDeniedException:
                 messagebox.showerror("Error", "No permission to add books.")
 
-        tk.Button(add_win, text="Add", command=confirm_add).grid(row=5, column=0, columnspan=2, pady=10)
+        tk.Button(add_win, text="Add", command=confirm_add).grid(row=7, column=0, columnspan=2, pady=10)
 
     def handleRemoveBook(self):
         if not self.current_user:

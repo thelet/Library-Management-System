@@ -62,6 +62,13 @@ def write_json_obj(obj_list : 'Book' or 'User', json_root :str, obj_name :str):
 
     print(f"Exported {len(obj_list)} {obj_name} to JSON files in '{new_dir_path}'.")
 
+def format_json_dict(json_dict):
+    """
+    Format a JSON-like dictionary into a string where each key-value pair is separated by \n
+    and the curly braces are removed.
+    """
+    return "\n".join(f"{key}: {value}" for key, value in json_dict.items())
+
 def load_json_obj(json_path, obj_name :str):
     from Classes.user import User
     from Classes.book import Book
