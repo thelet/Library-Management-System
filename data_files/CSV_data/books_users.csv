@@ -1,0 +1,4 @@
+user_id,username,password,borrowed_books,role,previously_borrowed_books
+0,holds_lost_books,00000,"[2, 2, 3, 3, 3, 3, 3, 6, 6, 6, 9, 11, 14, 14, 16, 18, 19, 19, 19, 21, 21, 23, 23, 23, 25, 27, 27, 27, 27, 28, 28, 30, 30, 30, 30, 30, 32, 32, 32, 32, 34, 34]",regular user,[]
+1,user1,11111,"[33, 24]",regular user,[8]
+2,user2,22222,"[29, 1, 1]",librarian,"[1, 1]"
