@@ -2,6 +2,7 @@ import csv
 import os
 from typing import Any, Dict
 import json
+from pathlib import Path
 
 user_headers_mapping = {
     "id": "user_id",
@@ -374,6 +375,59 @@ def format_json_dict(json_dict):
     and the curly braces are removed.
     """
     return "\n".join(f"{key}: {value}" for key, value in json_dict.items())
+
+
+
+def remove_book_from_csv(book_id: int, csv_file_path: str):
+    """
+    Removes the book with the specified ID from the CSV file.
+
+    :param book_id: int - The ID of the book to be removed.
+    :param csv_file_path: str - The path to the CSV file.
+    """
+    path = Path(csv_file_path)  # Convert string path to Path object
+    temp_file = path.with_suffix('.tmp')  # Create a temporary file with .tmp suffix
+
+    try:
+        with path.open(mode='r', encoding='utf-8', newline='') as csvfile, \
+             temp_file.open(mode='w', encoding='utf-8', newline='') as temp_csvfile:
+
+            reader = csv.DictReader(csvfile)
+            fieldnames = reader.fieldnames
+            if fieldnames is None:
+                print("CSV file has no header.")
+                return
+
+            writer = csv.DictWriter(temp_csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+
+            removed = False
+            for row in reader:
+                try:
+                    current_id = int(row['id'])
+                    if current_id != book_id:
+                        writer.writerow(row)
+                    else:
+                        removed = True
+                except ValueError:
+                    print(f"Invalid ID value in row: {row}")
+                except Exception as e:
+                    print(f"Error processing row {row}: {e}")
+
+            if removed:
+                print(f"Book with ID {book_id} removed from CSV.")
+            else:
+                print(f"Book with ID {book_id} not found in CSV.")
+
+        # Replace original CSV with the temp file
+        temp_file.replace(path)
+    except FileNotFoundError:
+        print(f"The file {csv_file_path} does not exist.")
+    except Exception as e:
+        print(f"Failed to remove book from CSV: {e}")
+        if temp_file.exists():
+            temp_file.unlink()  # Remove the temp file in case of failure
+
 
 def main():
     from Classes.user import User

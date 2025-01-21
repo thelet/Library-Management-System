@@ -130,6 +130,8 @@ class Library(Subject, Observer):
             raise PermissionDeniedException("manage_books")
         if book.id in self.books.keys():
             self.books.pop(book.id)
+            Book.book_ids.remove(book.id)
+            csv_manager.remove_book_from_csv(book.id, self.books_csv_file_path)
             print(f"Book '{book.title}' removed from the library.")
             self.logger.log(f"Book '{book.title}' removed from the library.")
             self.notifyObservers(f"Book removed: '{book.title}' by {book.author}'.")

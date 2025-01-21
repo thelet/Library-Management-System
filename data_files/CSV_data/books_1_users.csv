@@ -1,4 +1,5 @@
 user_id,username,password,borrowed_books,role,previously_borrowed_books
-0,holds_lost_books,scrypt:32768:8:1$kkRcc8uOeCNTvrih$5b68b399a733ef3be1e8db4ed9c5e55d427bfc60f8a1c3186b532487204f0111e9c613483cebcacd4e6821da8da818ec9c2e302f8093bbc09563c939d982a810,"[2, 2, 3, 3, 3, 3, 3, 6, 6, 6, 9, 11, 14, 14, 16, 18, 19, 19, 19, 21, 21, 23, 23, 23, 25, 27, 27, 27, 27, 28, 28, 30, 30, 30, 30, 30, 32, 32, 32, 32, 34, 34]",regular user,[]
+0,holds_lost_books,scrypt:32768:8:1$MdsfNyc8oIY8oqhT$a0b2bbef68dce4b64ef1e0b9513725bfc43b9ebef9e3085385a9a0ad890ee38c74d48c11ffd09153f37fc8b648aa5d850ff93fbe46c18ca1386ba3d321b968b9,"[2, 2, 6, 6, 6, 9, 11, 14, 14, 16, 18, 19, 19, 19, 21, 21, 23, 23, 23, 25, 27, 27, 27, 27, 28, 28, 30, 30, 30, 30, 30, 32, 32, 32, 32, 34, 34]",regular user,[]
 1,user1,scrypt:32768:8:1$zxmiKzt65SsF0krQ$1501247c023918cc0b71cad98bc2d63d73f0137b764f1a3148c0e760b31cfba130f29d3df3a12257df745e83d7fe47e3c1bd419800c54e4d50f1fdcb18fa7f35,"[5, 20]",regular user,[]
 2,user2,scrypt:32768:8:1$x4BpRKFJNR4M4WmT$20c4643fd06b0fa7f2b0e0eff19dfceb2f13bdde5fcc70838e7e02eb5c5873aeadf0ac813784b34f2b5d90afed9bb3986c999476ef48cde90f4f8b7f67a904cf,"[7, 1]",librarian,[]
+3,user3,scrypt:32768:8:1$ZTFmNJ5F3JWi5PdZ$f82fb15779082157d301f6c6bbb8adf787c5e3fdc6aa9c84f2fccd49f371b5804da3a9810ce5a6cf8d4a5ac0f32183391b48a37aebc286a78c037fd564eb1c16,[],librarian,[]
