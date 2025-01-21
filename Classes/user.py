@@ -1,5 +1,7 @@
 # user.py
+import ast
 from typing import List, Any
+
 from observer import Observer, Subject
 from Classes.book import Book
 from function_decorator import permission_required
@@ -82,12 +84,13 @@ class User(Observer, Subject):
         for val in value:
             self.__temp_borrowedBooks.append(val)
 
-
-
     def __str__(self):
         return (f"user id = {self.id} | username: {self.username} | password: {self.passwordHash} | role: {self.role} |"
                 f" borrowed books ids: {[book.id for book in self.borrowedBooks]} "
-                f"| past borrowed books if: {[self.__previously_borrowed_books]}\n")
+                f"| past borrowed books id's: {self.__previously_borrowed_books}\n")
+
+
+#------------- creating\loading users ----------------
 
     @staticmethod
     def create_user(username: str, passwordHash: str, permissions: List[str] = None):
@@ -106,11 +109,22 @@ class User(Observer, Subject):
         new_user.previously_borrowed_books = prev_borrowed
         return new_user
 
+    @staticmethod
+    def merge_user(user1: 'User', user2: 'User'):
+        if user1.id == user2.id and user1.username == user2.username and user1.passwordHash == user2.passwordHash:
+            merged_user = User.loaded_user(username= user1.username, passwordHash=user1.passwordHash, prev_id=user1.id,
+                                           temp_books= user1.temp_borrowedBooks + user2.temp_borrowedBooks,
+                                           prev_borrowed= user1.previously_borrowed_books+user2.previously_borrowed_books)
+            return merged_user
+
+
     def has_permission(self, permission: str) -> bool:
         """
         Checks if the user has a specific permission.
         """
         return permission in self.__permissions
+
+ #------------ books management ----------------
 
     @permission_required("borrow")
     def borrowBook(self, book: Book):
@@ -118,7 +132,7 @@ class User(Observer, Subject):
         Borrow the specified book if copies are available.
         Book attaches user as an observer to notify about availability changes.
         """
-        if book.copies > 0:
+        if book.available_copies > 0:
             self._borrowedBooks.append(book)
             print(f"{self.username} borrowed '{book.title}'.")
         else:
@@ -143,7 +157,7 @@ class User(Observer, Subject):
         else:
             print(f"{self.username} does not have '{book.title}' borrowed.")
 
-    # Observer Method
+#------------ observer method ----------------
     def update(self, notification: str):
         """
         Called when the user is notified by a subject they observe (e.g., a Book).
@@ -166,6 +180,9 @@ class User(Observer, Subject):
         for obs in self._observers:
             obs.update(notification)
 
+
+#------------------- json methods ----------------------
+
     def to_json(self) -> dict:
         """
         Returns a JSON-serializable dict of the user data.
@@ -186,13 +203,16 @@ class User(Observer, Subject):
     def from_json(json: dict[str, Any]):
         if json["role"] == "regular user":
             return User.loaded_user(username=str(json["username"]), passwordHash=str(json["passwordHash"]),
-                                    prev_id=int(json["id"]), temp_books=json["borrowed_books"], prev_borrowed = json["previously_borrowed_books"])
+                                    prev_id=int(json["id"]), temp_books=ast.literal_eval(json["borrowed_books"]),
+                                    prev_borrowed =ast.literal_eval(json["previously_borrowed_books"]))
 
         elif json["role"] == "librarian":
             return Librarian.from_json_librarian(json)
         else:
             raise ValueError(f"Unknown role '{json['role']}'")
 
+
+#------------ other -----------------
     def __eq__(self, other):
         if isinstance(other, Book):
             return self.id == other.id
@@ -236,6 +256,9 @@ class Librarian(User):
         User.users_ids.append(User.user_id)
         return Librarian(username= username,passwordHash= passwordHash,permissions= permissions or LIBRARIAN_DEFAULT_PERMISSIONS)
 
+
+    #------------- json methods --------------------
+
     def to_json(self) -> dict:
         """
         Returns a JSON-serializable dict of the librarian data, including role='librarian'.
@@ -247,10 +270,7 @@ class Librarian(User):
     @staticmethod
     def from_json_librarian(json : dict[str, Any]):
         basic_user = User.loaded_user(username=str(json["username"]), passwordHash=str(json["passwordHash"]),
-                                      prev_id=int(json["id"]), temp_books=json["borrowed_books"], prev_borrowed = json["previously_borrowed_books"])
+                                      prev_id=int(json["id"]), temp_books=ast.literal_eval(json["borrowed_books"]), prev_borrowed = ast.literal_eval(json["previously_borrowed_books"]))
         basic_user.permissions = LIBRARIAN_DEFAULT_PERMISSIONS
         basic_user.role = "librarian"
         return basic_user
-
-    # Optionally, you can add librarian-specific methods (addBook, removeBook) if you want
-    # them on the user side. Currently they are in library or handled via role checks.

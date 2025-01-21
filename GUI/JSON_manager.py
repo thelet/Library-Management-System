@@ -4,7 +4,14 @@ import os
 import json
 from typing import List, Optional, Union, Any
 
-count_runs = 0
+import Classes.library
+
+"""
+function collection to write and read objects from JSON and CSV file.
+handle the loading and reconnecting of users, books and decorators when starting the library.
+"""
+
+#mapping of the json headers to their matching csv headers
 user_headers_mapping = {
     "id": "user_id",
     "username": "username",
@@ -23,13 +30,14 @@ book_headers_mapping = {
     "copies": "copies",
     "isLoaned": "is_loaned",
     "user_observers": "followers_ids",
-    "borrow_count": "borrow_count"
+    "borrow_count": "borrow_count",
+    "borrowed_users" : "borrowed_users",
 }
+
+template_book_headers_mapping = {}
 
 
 def write_json_obj(obj_list : 'Book' or 'User', json_root :str, obj_name :str):
-    global count_runs
-    count_runs += 1
     """
     Creates a new directory called 'books_json' within the given root_dir.
     For each Book in 'books', writes a JSON file named '{book.id}.json' 
@@ -61,6 +69,7 @@ def write_json_obj(obj_list : 'Book' or 'User', json_root :str, obj_name :str):
             json.dump(obj_data, json_file, indent=4)
 
     print(f"Exported {len(obj_list)} {obj_name} to JSON files in '{new_dir_path}'.")
+
 
 def format_json_dict(json_dict):
     """
@@ -148,6 +157,12 @@ def reattached_observers(books_dict : dict[int ,'Book'], users_dict : dict[int, 
                     not_found.append(user_id)
             loaded_book.temp_followers = not_found
 
+        for user_id in loaded_book.borrowed_users:
+            if user_id not in users_dict.keys():
+                print(f"User {user_id} not found, connecting book '{loaded_book.title}' to holds_lost_books_user")
+                lib = Classes.library.Library.getInstance()
+                lib.lendBook(lib.lost_books_user, loaded_book)
+
 def reconnect_obs_list(ids_list, obj_dict: dict[int, 'User'] or dict[int, 'Book']):
     obj_list = []
     not_found = []
@@ -163,13 +178,6 @@ def reconnect_borrowed_books(users_dict : dict[int, 'User'], books_dict: dict[in
         books_list, not_found = reconnect_obs_list(user.temp_borrowedBooks, books_dict)
         user.borrowedBooks = books_list
         user.temp_borrowedBooks = not_found
-
-
-
-
-
-
-
 
 
 def jsons_to_csv_with_mapping(json_dir, csv_file_path, headers_mapping):
@@ -215,7 +223,7 @@ def jsons_to_csv_with_mapping(json_dir, csv_file_path, headers_mapping):
 
 
 
-def csv_to_individual_json_files(csv_file_path, headers_mapping, output_dir, id_field="id"):
+def csv_to_individual_json_files(csv_file_path, headers_mapping, output_dir, id_field="id", check_modify=False):
     """
     Converts a CSV file to individual JSON files using a headers mapping.
     Each JSON file will be named based on the `id_field`.
@@ -227,9 +235,11 @@ def csv_to_individual_json_files(csv_file_path, headers_mapping, output_dir, id_
     :return: None
     """
 
-    keys_to_list = ["user_observers", "borrowed_books", "previously_borrowed_books"]
+    keys_to_list = ["user_observers", "borrowed_books", "previously_borrowed_books", "borrowed_users"]
     # Ensure the output directory exists
     os.makedirs(output_dir, exist_ok=True)
+    if check_modify:
+        modify_csv(csv_file_path)
 
     try:
         with open(csv_file_path, 'r', encoding='utf-8') as csv_file:
@@ -277,98 +287,85 @@ def csv_to_individual_json_files(csv_file_path, headers_mapping, output_dir, id_
         raise RuntimeError(f"Failed to convert CSV to individual JSON files. Error: {e}")
 
 
-def json_test_main():
-    from Classes.book import Book
-    from Classes.user import User, Librarian
 
-    json_root = r"C:\Users\thele\Documents\PythonProject\oop_ex_3\data_files\JSON_data"
+def modify_csv(file_path: str):
+    """
+    Modify the CSV file in place to fit the required structure:
+      - If there's no 'id' header, create it with int values = row number (1-based).
+      - 'title', 'genre', 'copies', 'year', 'is_loaned' headers remain the same if they exist.
+      - If there's no 'followers_ids' column, create it and fill with "[]".
+      - If there's no 'borrow_count' column, create it:
+           if is_loaned == "Yes" => borrow_count = copies
+           else => borrow_count = 0
+      - Preserve all other existing columns/values.
+    """
 
-    book3= Book.createBook("title3", "author3", 2003, "category3", 3)
-    book4 = Book.createBook("title4", "author4", 2004, "category4", 4)
-    book5 = Book.createBook("title5", "author5", 2005, "category5", 5)
-    book_set = (book3, book4)
-    print(f"\ncreated books:\n")
-    for book in book_set:
-        print(book, end="")
+    required_fields = [
+        "id",
+        "title",
+        "genre",
+        "copies",
+        "year",
+        "is_loaned",
+        "followers_ids",
+        "borrow_count",
+        "borrowed_users"
+    ]
 
-    user1 = User.create_user(username="user1", passwordHash="password1")
-    user2 = User.create_user(username="user2", passwordHash="password2")
-    user3 = Librarian.create_librarian(username="user3", passwordHash="password3")
-    user4 = User.create_user(username="user4", passwordHash="password4")
-    user_set = (user1, user2, user3)
-    print(f"\ncreated users: \n")
-    for user in user_set:
-        print(user, end="")
+    # Read the original CSV
+    with open(file_path, 'r', encoding='utf-8', newline='') as infile:
+        reader = csv.DictReader(infile)
+        original_fieldnames = list(reader.fieldnames) if reader.fieldnames else []
 
-    book3.attach(user1)
-    book3.attach(user2)
-    book4.attach(user3)
-    book3.attach(user4)
-    user1.borrowedBooks.append(book5)
-    user1.borrowedBooks.append(book4)
-    user3.borrowedBooks.append(book3)
-    user2.borrowedBooks.append(book4)
-    user2.borrowedBooks.append(book3)
+        # Determine which required fields are missing
+        missing_fields = [f for f in required_fields if f not in original_fieldnames]
+
+        # Create a new fieldnames list that combines original + any missing
+        new_fieldnames = original_fieldnames + missing_fields
+
+        rows = []
+        for i, row in enumerate(reader, start=1):
+            # If 'id' is missing or empty in the original, set it
+            if "id" not in row or not row["id"].strip():
+                row["id"] = i
+
+            # If 'followers_ids' is missing or empty, set it to "[]"
+            if "followers_ids" not in row or not row["followers_ids"].strip():
+                row["followers_ids"] = "[]"
+
+            if not row.get("borrowed_users", "").strip():
+                if row["is_loaned"] == "Yes":
+                    row["borrowed_users"] = [0] * int(row.get("copies", "0").strip())
+                else:
+                    row["borrowed_users"] = []
+
+            # If 'borrow_count' is missing, calculate based on 'is_loaned' and 'copies'
+            if "borrow_count" not in row or not row["borrow_count"]:
+                    row["borrow_count"] = 0
+
+            # Make sure that missing columns (from new_fieldnames) are set to empty if not present
+            for field in missing_fields:
+                if field not in row:
+                    row[field] = ""
+
+            # Convert all new numeric fields to string for writing consistency
+            if isinstance(row.get("id"), int):
+                row["id"] = str(row["id"])
+            if isinstance(row.get("borrow_count"), int):
+                row["borrow_count"] = str(row["borrow_count"])
+
+            rows.append(row)
+
+    # Write the updated CSV with both original and newly added columns
+    with open(file_path, 'w', encoding='utf-8', newline='') as outfile:
+        writer = csv.DictWriter(outfile, fieldnames=new_fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
 
 
-    write_json_obj(book_set,json_root, "books")
-
-    json_books_to_load = os.path.join(json_root, "books_json_1")
-    loaded_books = load_objs_from_json(json_books_to_load, "books")
-    print(f"\nLoaded books: \n")
-    for book in loaded_books.values():
-          print(book.__str__(), end = "")
 
 
-    write_json_obj(user_set, json_root, "users")
 
-    json_users_to_load = os.path.join(json_root, "users_json_2")
-    loaded_users = load_objs_from_json(json_users_to_load, "users")
-    print(f"\nLoaded users: \n")
-    for user in loaded_users.values():
-        print(user.__str__(), end = "")
-
-    reattached_observers(loaded_books, loaded_users)
-
-    for book in loaded_books:
-        print(f"\nid: {book} \nfollowers: \n{[user_obs.id for user_obs in loaded_books[book].user_observers]} \n"
-              f"temp_followers: {loaded_books[book].temp_followers}")
-
-    reconnect_borrowed_books(loaded_users, loaded_books)
-
-    for user in loaded_users.values():
-        print(f"\nid: {user.id} \nborrowed_books: \n{[book.id for book in user.borrowedBooks]}\ntemp books: \n{user.temp_borrowedBooks}")
-
-    csv_root = r"C:\Users\thele\Documents\PythonProject\oop_ex_3\data_files\CSV_data"
-    jsons_to_csv_with_mapping(json_users_to_load, os.path.join(csv_root, "users_2.csv"), user_headers_mapping)
-    jsons_to_csv_with_mapping(json_books_to_load, os.path.join(csv_root, "books_1.csv"), book_headers_mapping)
-
-def csv_test_main():
-    csv_root = r"C:\Users\thele\Documents\PythonProject\oop_ex_3\data_files\CSV_data"
-    json_books =r"C:\Users\thele\Documents\PythonProject\oop_ex_3\data_files\JSON_data\books_from_csv"
-    json_users = r"C:\Users\thele\Documents\PythonProject\oop_ex_3\data_files\JSON_data\users_from_csv"
-    csv_to_individual_json_files(os.path.join(csv_root, "books_1.csv"),book_headers_mapping,json_books)
-    csv_to_individual_json_files(os.path.join(csv_root, "users_2.csv"),user_headers_mapping,json_users)
-
-    book_dict = load_objs_from_json(json_books, "books")
-    print(f"\nLoaded books: \n")
-    for book in book_dict.values():
-        print(book.__str__(), end="")
-
-    user_dict = load_objs_from_json(json_users, "users")
-    print(f"\nLoaded users: \n")
-    for user in user_dict.values():
-        print(user.__str__(), end="")
-
-    reattached_observers(book_dict, user_dict)
-    for book in book_dict:
-        print(f"\nid: {book} \nfollowers: \n{[user_obs.id for user_obs in book_dict[book].user_observers]} \n"
-              f"temp_followers: {book_dict[book].temp_followers}")
-
-    reconnect_borrowed_books(user_dict, book_dict)
-
-    for user in user_dict.values():
-        print(f"\nid: {user.id} \nborrowed_books: \n{[book.id for book in user.borrowedBooks]}\ntemp books: \n{user.temp_borrowedBooks}")
 
 def test_new_list():
     from Classes.library import Library
@@ -454,12 +451,12 @@ def test_new_list():
     for book in books_dict.values():
         print(book)
 
+def trying():
+    modify_csv(r"C:\Users\thele\Documents\PythonProject\oop_ex_3\data_files\CSV_data\books.csv")
 
 
 if __name__ == '__main__':
-    from Classes.book import Book
-    from Classes.user import User, Librarian
-    test_new_list()
+    trying()
 
 
 

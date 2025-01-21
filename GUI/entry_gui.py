@@ -64,6 +64,7 @@ class EntryGUI:
                 messagebox.showerror("Error", f"Failed to load users: {e}")
 
     def start_system(self):
+        self.library.after_login()
         # If data has been loaded or not, we proceed
         messagebox.showinfo("Info", "Starting Library System.")
         # Move to the login screen

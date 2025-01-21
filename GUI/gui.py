@@ -32,7 +32,7 @@ class LibraryGUI:
     def __init__(self, root: tk.Toplevel, current_user: Optional[User] = None):
         self.root = root
         self.root.title("Library Management System")
-        self.root.geometry("800x400")  # Smaller default GUI size
+        self.root.geometry("800x550")  # Smaller default GUI size
 
         self.logger = Logger()
         self.library = Library.getInstance()
@@ -47,6 +47,7 @@ class LibraryGUI:
         # Book list, details
         self.book_listbox = None
         self.details_label = None
+        self.cover_image_label = None
 
         # Buttons
         self.lend_button = None
@@ -159,29 +160,33 @@ class LibraryGUI:
         details_frame = tk.Frame(content_frame)
         details_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
+        # Book details label
         self.details_label = tk.Label(details_frame, text="Select a book to see details.", anchor="nw", justify=tk.LEFT)
         self.details_label.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        button_row = tk.Frame(details_frame)
-        button_row.pack(side=tk.BOTTOM, anchor="s", pady=10)
+        # Frame for the cover image (to keep it independent of buttons)
+        image_frame = tk.Frame(details_frame, width=150, height=200)  # Fixed dimensions for image
+        image_frame.pack(side=tk.RIGHT, padx=10, pady=10)
 
-        # Remove from notifications
+        self.cover_image_label = tk.Label(image_frame)  # Label inside the image frame
+        self.cover_image_label.pack()
+
+        # Buttons frame, placed below the details label
+        button_row = tk.Frame(details_frame)
+        button_row.pack(side=tk.LEFT, anchor="nw", padx=5, pady=5)  # Positioned independently of the image frame
+
+        # Buttons
         if self.current_user:
             self.remove_notifications_button = tk.Button(
-                button_row, text="Remove from Notifications",
-                command=self.handleRemoveFromNotifications
+                button_row, text="Remove from Notifications", command=self.handleRemoveFromNotifications
             )
             self.remove_notifications_button.pack(side=tk.TOP, pady=5)
 
-        # Apply for notifications
-        if self.current_user:
             self.apply_notifications_button = tk.Button(
-                button_row, text="Apply for Notifications",
-                command=self.handleApplyForNotifications
+                button_row, text="Apply for Notifications", command=self.handleApplyForNotifications
             )
             self.apply_notifications_button.pack(side=tk.TOP, pady=5)
 
-        # Lend/Return
         if self.current_user and self.current_user.has_permission("borrow"):
             self.lend_button = tk.Button(button_row, text="Lend Book", command=self.handleLendBook)
             self.lend_button.pack(side=tk.TOP, pady=5)
@@ -245,7 +250,7 @@ class LibraryGUI:
     # ----------------- Searching / Filtering ----------------- #
     def perform_search(self):
         """Combine textual search with the currently chosen filter."""
-        criteria = self.search_entry.get().strip()
+        criteria = str(self.search_entry.get().strip())
 
         if criteria:
             t_res = self.library.searchBooks(criteria, SearchByTitle())
@@ -281,9 +286,9 @@ class LibraryGUI:
                 return {b for b in books_set if b in getattr(self.current_user, "borrowedBooks", [])}
             return set()
         elif chosen_filter == "Available Books":
-            return {b for b in books_set if b.copies > 0}
+            return {b for b in books_set if b.available_copies > 0}
         elif chosen_filter == "Not Available Books":
-            return {b for b in books_set if b.copies == 0}
+            return {b for b in books_set if b.available_copies == 0}
         elif chosen_filter == "Previously Loand":
             if self.current_user and hasattr(self.current_user, "previously_borrowed_books"):
                 prev_ids = self.current_user.previously_borrowed_books  # e.g. [1, 10, 12]
@@ -308,6 +313,9 @@ class LibraryGUI:
         from JSON_manager import format_json_dict
         """Show details for the selected book, highlight Return button if user has borrowed it."""
         selection = event.widget.curselection()
+        # Check if a previous image exists, remove it
+        if hasattr(self, "cover_image_label"):
+            self.cover_image_label.destroy()
         if not selection:
             return
         idx = selection[0]
@@ -317,8 +325,8 @@ class LibraryGUI:
             return
         if book.id in self.library.decorated_books:
             book = self.library.decorated_books.get(book.id)
-
         book_details = book.getDetails()
+
         if "cover_image" in book_details and book_details["cover_image"]:
             self.display_cover_image(book_details["cover_image"])
             book_details.pop("cover_image")
@@ -338,7 +346,7 @@ class LibraryGUI:
     # ----------------- handles image decorator----------------- #
     def display_cover_image(self, image_path):
         """
-        Display a cover image in the details_label frame.
+        Display a cover image in the image_frame.
         :param image_path: Path to the image file
         """
         try:
@@ -349,14 +357,14 @@ class LibraryGUI:
             pil_img = pil_img.resize((150, 200))  # Resize to fit nicely
             img = ImageTk.PhotoImage(pil_img)
 
-            # Check if a previous image exists, remove it
-            if hasattr(self, "cover_image_label"):
-                self.cover_image_label.destroy()
+            # Check if cover_image_label exists and create it if not
+            if not hasattr(self, "cover_image_label") or not self.cover_image_label.winfo_exists():
+                self.cover_image_label = tk.Label(self.details_label)  # Or a dedicated frame for the image
+                self.cover_image_label.pack(side=tk.RIGHT, padx=2, pady=2)
 
-            # Create a new label to display the image
-            self.cover_image_label = tk.Label(self.details_label, image=img)
-            self.cover_image_label.image = img  # Keep a reference
-            self.cover_image_label.pack(side=tk.RIGHT, padx=5, pady=5)
+            # Set the image in the cover_image_label
+            self.cover_image_label.config(image=img)
+            self.cover_image_label.image = img  # Keep a reference to avoid garbage collection
 
         except Exception as e:
             print(f"Failed to load cover image: {e}")
