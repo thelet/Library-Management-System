@@ -416,6 +416,9 @@ def remove_book_from_csv(book_id: int, csv_file_path: str):
     :param book_id: int - The ID of the book to be removed.
     :param csv_file_path: str - The path to the CSV file.
     """
+    if csv_file_path is None:
+        print("Warning: csv_file_path is non. skipping file modification.")
+        return
     path = Path(csv_file_path)  # Convert string path to Path object
     temp_file = path.with_suffix('.tmp')  # Create a temporary file with .tmp suffix
 

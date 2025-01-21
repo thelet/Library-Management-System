@@ -8,7 +8,7 @@ from Classes.book import Book
 from design_patterns.decorator import DescriptionDecorator, CoverDecorator
 from design_patterns.logger import Logger
 from design_patterns.strategy import SearchByTitle, SearchByAuthor, SearchByCategory
-from design_patterns.exceptions import PermissionDeniedException
+from design_patterns.exceptions import PermissionDeniedException, BookNotFoundException
 
 
 class LibraryGUI:
@@ -615,13 +615,15 @@ class LibraryGUI:
         idx = sel[0]
         btitle = self.book_listbox.get(idx)
         book = next((b for b in self.library.books.values() if b.title == btitle), None)
+
         if book:
-            success = self.library.returnBook(self.current_user, book)
-            if success:
-                self.logger.log(f"{self.current_user.username} returned '{btitle}'.")
-                messagebox.showinfo("Success", f"You returned '{btitle}'.")
-                self.perform_search()
-            else:
+            try:
+                success = self.library.returnBook(self.current_user, book)
+                if success:
+                    self.logger.log(f"{self.current_user.username} returned '{btitle}'.")
+                    messagebox.showinfo("Success", f"You returned '{btitle}'.")
+                    self.perform_search()
+            except BookNotFoundException:
                 messagebox.showerror("Error", f"You do not have '{btitle}' borrowed.")
 
     def handleApplyForNotifications(self):

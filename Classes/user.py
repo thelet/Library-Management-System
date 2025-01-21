@@ -3,6 +3,8 @@
 from typing import List, Any
 from werkzeug.security import generate_password_hash, check_password_hash
 import ast
+
+from design_patterns.exceptions import BookNotFoundException
 from design_patterns.observer import Observer, Subject
 from Classes.book import Book
 from design_patterns.function_decorator import permission_required
@@ -202,8 +204,10 @@ class User(Observer, Subject):
             library = Library.getInstance()
             library.notifyObservers(f"{self.username} returned '{book.title}'.")
             print(f"{self.username} returned '{book.title}'.")
+            return True
         else:
             print(f"{self.username} does not have '{book.title}' borrowed.")
+            return False
 
 #------------ observer method ----------------
     def update(self, notification: str):

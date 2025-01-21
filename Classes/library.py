@@ -108,7 +108,11 @@ class Library(Subject, Observer):
             user_id = user.id
             self.users[user_id] = user
             self.notifyObservers(f"new {user_params['role']} with username: {user.username} signed up successfully.")
-            csv_manager.upsert_obj_to_csv(user.to_json(), self.users_csv_file_path, csv_manager.user_headers_mapping)
+            try:
+                csv_manager.update_csv([user.to_json(), self.users_csv_file_path, csv_manager.user_headers_mapping])
+            except ValueError as e:
+                print(f"error when writing to file: {e}")
+
             print(f"added user to {self.users_csv_file_path}")
             return user
         else:
@@ -214,7 +218,8 @@ class Library(Subject, Observer):
         else:
             print(f"{user.username} does not have '{book.title}' borrowed.")
             self.logger.log(f"User {user.username} tried to return '{book.title}' that he didn't borrowed.")
-            return False
+            raise BookNotFoundException(f"User {user.username} tried to return '{book.title}' that he didn't borrowed.")
+
 
     # ------------- Subject Implementation -------------
     def attach(self, observer: Observer):
@@ -279,7 +284,7 @@ class Library(Subject, Observer):
             print(f"No decorators for books available for '{csv_file_path}'.")
 
 
-    def after_login(self):
+    def after_start(self):
         from manage_files import csv_manager
         if self.users_csv_file_path is None:
             self.users_csv_file_path = csv_manager.create_empty_files(self.books_csv_file_path,
