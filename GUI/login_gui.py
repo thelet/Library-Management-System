@@ -20,16 +20,26 @@ class LoginGUI:
         self.password_entry.grid(row=1, column=1, padx=5, pady=5)
 
         # Buttons
-        tk.Button(self.master, text="Log in as Librarian", command=lambda: self.login("librarian")).grid(row=2, column=0, padx=5,
-                                                                                              pady=5)
-        tk.Button(self.master, text="Log in as User", command=lambda:self.login("regular user")).grid(row=2, column=1, padx=5, pady=5)
-        tk.Button(self.master, text="Sign up as Librarian", command=lambda: self.signup("librarian")).grid(row=3, column=0, padx=5,
-                                                                                                pady=5)
-        tk.Button(self.master, text="Sign up as User", command=lambda: self.signup("regular user")).grid(row=3, column=1, padx=5, pady=5)
+        tk.Button(
+            self.master,
+            text="Log in as Librarian or a user",
+            command=lambda: self.login("librarian"),
+        ).grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+        # tk.Button(self.master, text="Log in as User", command=lambda:self.login("regular user")).grid(row=2, column=1, padx=5, pady=5)
+        tk.Button(
+            self.master,
+            text="Sign up as Librarian",
+            command=lambda: self.signup("librarian"),
+        ).grid(row=3, column=0, padx=5, pady=5)
+        tk.Button(
+            self.master,
+            text="Sign up as User",
+            command=lambda: self.signup("regular user"),
+        ).grid(row=3, column=1, padx=5, pady=5)
 
-        tk.Button(self.master, text="Continue as Guest", command=self.guest_mode).grid(row=4, column=0, columnspan=2,
-                                                                                       pady=5)
-
+        tk.Button(self.master, text="Continue as Guest", command=self.guest_mode).grid(
+            row=4, column=0, columnspan=2, pady=5
+        )
 
     def signup(self, role):
         username = self.username_entry.get().strip()
@@ -43,7 +53,9 @@ class LoginGUI:
             return
         """
         try:
-            user = self.library.signUp({"username": username, "password": password, "role": role})
+            user = self.library.signUp(
+                {"username": username, "password": password, "role": role}
+            )
         except SignUpError as e:
             messagebox.showerror("Error", str(e))
         else:
@@ -57,7 +69,9 @@ class LoginGUI:
         password = self.password_entry.get().strip()
 
         # Find a user with the given username
-        user = next((u for u in self.library.users.values() if u.username == username), None)
+        user = next(
+            (u for u in self.library.users.values() if u.username == username), None
+        )
 
         if user and user.verify_password(password):
             print(f"{username} login successful")
@@ -71,6 +85,7 @@ class LoginGUI:
 
     def open_main_screen(self, user):
         from gui import LibraryGUI
+
         new_window = tk.Toplevel(self.master)
         LibraryGUI(new_window, user)  # Pass in the user or None for guests
         # optional: keep or destroy the login window

@@ -63,26 +63,39 @@ class LibraryGUI:
     def create_widgets(self):
         # DO NOT CHANGE: is_librarian = self.current_user.role == "librarian"
         # (if current_user is None, this will be False)
-        is_librarian = (self.current_user is not None and self.current_user.role == "librarian")
-        is_guest = (self.current_user is None)
+        is_librarian = (
+            self.current_user is not None and self.current_user.role == "librarian"
+        )
+        is_guest = self.current_user is None
 
         # --- TOP FRAME (User-based buttons, CSV exports) ---
         top_frame = tk.Frame(self.root)
         top_frame.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
         if is_librarian:
-            tk.Button(top_frame, text="Add Book", command=self.handleAddBook).pack(side=tk.LEFT, padx=5)
-            tk.Button(top_frame, text="Remove Book", command=self.handleRemoveBook).pack(side=tk.LEFT, padx=5)
+            tk.Button(top_frame, text="Add Book", command=self.handleAddBook).pack(
+                side=tk.LEFT, padx=5
+            )
+            tk.Button(
+                top_frame, text="Remove Book", command=self.handleRemoveBook
+            ).pack(side=tk.LEFT, padx=5)
 
         if is_guest:
-            tk.Button(top_frame, text="Log In", command=self.handleLogin).pack(side=tk.LEFT, padx=5)
-            tk.Button(top_frame, text="Sign Up", command=self.handleRegister).pack(side=tk.LEFT, padx=5)
+            tk.Button(top_frame, text="Log In", command=self.handleLogin).pack(
+                side=tk.LEFT, padx=5
+            )
+            tk.Button(top_frame, text="Sign Up", command=self.handleRegister).pack(
+                side=tk.LEFT, padx=5
+            )
 
         if not is_guest:
-            tk.Button(top_frame, text="Logout", command=self.handleLogout).pack(side=tk.LEFT, padx=5)
+            tk.Button(top_frame, text="Logout", command=self.handleLogout).pack(
+                side=tk.LEFT, padx=5
+            )
 
-        tk.Button(top_frame, text="Export Users CSV", command=self.handleExportUsersCSV).pack(side=tk.LEFT, padx=5)
-        tk.Button(top_frame, text="Export Books CSV", command=self.handleExportBooksCSV).pack(side=tk.LEFT, padx=5)
+        # tk.Button(top_frame, text="Export Users CSV", command=self.handleExportUsersCSV).pack(side=tk.LEFT, padx=5)
+        # tk.Button(top_frame, text="Export Books CSV", command=self.handleExportBooksCSV).pack(side=tk.LEFT, padx=5)
+        # not needed for this exercise
 
         # --- Main frame: top (book screen), bottom (notifications) ---
         main_frame = tk.Frame(self.root)
@@ -122,9 +135,11 @@ class LibraryGUI:
             "Available Books",
             "Not Available Books",
             "Previously Loand",
-            "Notifications"
+            "Notifications",
         ]
-        self.filter_combobox = ttk.Combobox(search_frame, values=filter_options, state="readonly", width=15)
+        self.filter_combobox = ttk.Combobox(
+            search_frame, values=filter_options, state="readonly", width=15
+        )
         self.filter_combobox.pack(side=tk.LEFT, padx=5)
         self.filter_combobox.set("All Books")
         self.filter_combobox.bind("<<ComboboxSelected>>", self.on_filter_selected)
@@ -138,7 +153,9 @@ class LibraryGUI:
         self.genre_combobox.bind("<<ComboboxSelected>>", self.on_genre_selected)
 
         # "Apply" button to trigger search + filter
-        tk.Button(search_frame, text="Apply", command=self.perform_search).pack(side=tk.LEFT, padx=5)
+        tk.Button(search_frame, text="Apply", command=self.perform_search).pack(
+            side=tk.LEFT, padx=5
+        )
 
         # Book list + details
         content_frame = tk.Frame(parent)
@@ -161,11 +178,18 @@ class LibraryGUI:
         details_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
         # Book details label
-        self.details_label = tk.Label(details_frame, text="Select a book to see details.", anchor="nw", justify=tk.LEFT)
+        self.details_label = tk.Label(
+            details_frame,
+            text="Select a book to see details.",
+            anchor="nw",
+            justify=tk.LEFT,
+        )
         self.details_label.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         # Frame for the cover image (to keep it independent of buttons)
-        image_frame = tk.Frame(details_frame, width=150, height=200)  # Fixed dimensions for image
+        image_frame = tk.Frame(
+            details_frame, width=150, height=200
+        )  # Fixed dimensions for image
         image_frame.pack(side=tk.RIGHT, padx=10, pady=10)
 
         self.cover_image_label = tk.Label(image_frame)  # Label inside the image frame
@@ -173,26 +197,36 @@ class LibraryGUI:
 
         # Buttons frame, placed below the details label
         button_row = tk.Frame(details_frame)
-        button_row.pack(side=tk.LEFT, anchor="nw", padx=5, pady=5)  # Positioned independently of the image frame
+        button_row.pack(
+            side=tk.LEFT, anchor="nw", padx=5, pady=5
+        )  # Positioned independently of the image frame
 
         # Buttons
         if self.current_user:
             self.remove_notifications_button = tk.Button(
-                button_row, text="Remove from Notifications", command=self.handleRemoveFromNotifications
+                button_row,
+                text="Remove from Notifications",
+                command=self.handleRemoveFromNotifications,
             )
             self.remove_notifications_button.pack(side=tk.TOP, pady=5)
 
             self.apply_notifications_button = tk.Button(
-                button_row, text="Apply for Notifications", command=self.handleApplyForNotifications
+                button_row,
+                text="Apply for Notifications",
+                command=self.handleApplyForNotifications,
             )
             self.apply_notifications_button.pack(side=tk.TOP, pady=5)
 
         if self.current_user and self.current_user.has_permission("borrow"):
-            self.lend_button = tk.Button(button_row, text="Lend Book", command=self.handleLendBook)
+            self.lend_button = tk.Button(
+                button_row, text="Lend Book", command=self.handleLendBook
+            )
             self.lend_button.pack(side=tk.TOP, pady=5)
 
         if self.current_user and self.current_user.has_permission("return"):
-            self.return_button = tk.Button(button_row, text="Return Book", command=self.handleReturnBook)
+            self.return_button = tk.Button(
+                button_row, text="Return Book", command=self.handleReturnBook
+            )
             self.return_button.pack(side=tk.TOP, pady=5)
 
     def create_notifications_screen(self, parent):
@@ -203,11 +237,15 @@ class LibraryGUI:
         notif_scroll = tk.Scrollbar(parent)
         notif_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
-        self.notifications_text = tk.Text(parent, wrap="word", yscrollcommand=notif_scroll.set)
+        self.notifications_text = tk.Text(
+            parent, wrap="word", yscrollcommand=notif_scroll.set
+        )
         self.notifications_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         notif_scroll.config(command=self.notifications_text.yview)
 
-        refresh_button = tk.Button(parent, text="Refresh Notifications", command=self.refresh_notifications)
+        refresh_button = tk.Button(
+            parent, text="Refresh Notifications", command=self.refresh_notifications
+        )
         refresh_button.place(relx=0.5, rely=0.5, anchor="center")
 
     # ----------------- Filter / Genre ----------------- #
@@ -238,7 +276,9 @@ class LibraryGUI:
         self.book_listbox.delete(0, tk.END)
         for i, book in enumerate(self.library.books.values()):
             self.book_listbox.insert(tk.END, book.title)
-            if self.current_user and book in getattr(self.current_user, "borrowedBooks", []):
+            if self.current_user and book in getattr(
+                self.current_user, "borrowedBooks", []
+            ):
                 self.book_listbox.itemconfig(i, bg="green")
 
     def refresh_notifications(self):
@@ -283,15 +323,23 @@ class LibraryGUI:
             return set(self.library.getPopularBooks())
         elif chosen_filter == "My Books":
             if self.current_user:
-                return {b for b in books_set if b in getattr(self.current_user, "borrowedBooks", [])}
+                return {
+                    b
+                    for b in books_set
+                    if b in getattr(self.current_user, "borrowedBooks", [])
+                }
             return set()
         elif chosen_filter == "Available Books":
             return {b for b in books_set if b.available_copies > 0}
         elif chosen_filter == "Not Available Books":
             return {b for b in books_set if b.available_copies == 0}
         elif chosen_filter == "Previously Loand":
-            if self.current_user and hasattr(self.current_user, "previously_borrowed_books"):
-                prev_ids = self.current_user.previously_borrowed_books  # e.g. [1, 10, 12]
+            if self.current_user and hasattr(
+                self.current_user, "previously_borrowed_books"
+            ):
+                prev_ids = (
+                    self.current_user.previously_borrowed_books
+                )  # e.g. [1, 10, 12]
                 return {b for b in books_set if b.id in prev_ids}
             return set()
         elif chosen_filter == "Notifications":
@@ -305,12 +353,15 @@ class LibraryGUI:
         # Sort by title
         for i, book in enumerate(sorted(books_collection, key=lambda bk: bk.title)):
             self.book_listbox.insert(tk.END, book.title)
-            if self.current_user and book in getattr(self.current_user, "borrowedBooks", []):
+            if self.current_user and book in getattr(
+                self.current_user, "borrowedBooks", []
+            ):
                 self.book_listbox.itemconfig(i, bg="green")
 
     # ----------------- Book Selection ----------------- #
     def on_book_select(self, event):
         from manage_files.csv_manager import format_json_dict
+
         """Show details for the selected book, highlight Return button if user has borrowed it."""
         selection = event.widget.curselection()
         # Check if a previous image exists, remove it
@@ -333,7 +384,9 @@ class LibraryGUI:
 
         details = format_json_dict(book_details)
 
-        if self.current_user and book in getattr(self.current_user, "borrowedBooks", []):
+        if self.current_user and book in getattr(
+            self.current_user, "borrowedBooks", []
+        ):
             details += "\nYou have borrowed this book."
             if self.return_button:
                 self.return_button.config(bg="green")
@@ -358,13 +411,20 @@ class LibraryGUI:
             img = ImageTk.PhotoImage(pil_img)
 
             # Check if cover_image_label exists and create it if not
-            if not hasattr(self, "cover_image_label") or not self.cover_image_label.winfo_exists():
-                self.cover_image_label = tk.Label(self.details_label)  # Or a dedicated frame for the image
+            if (
+                not hasattr(self, "cover_image_label")
+                or not self.cover_image_label.winfo_exists()
+            ):
+                self.cover_image_label = tk.Label(
+                    self.details_label
+                )  # Or a dedicated frame for the image
                 self.cover_image_label.pack(side=tk.RIGHT, padx=2, pady=2)
 
             # Set the image in the cover_image_label
             self.cover_image_label.config(image=img)
-            self.cover_image_label.image = img  # Keep a reference to avoid garbage collection
+            self.cover_image_label.image = (
+                img  # Keep a reference to avoid garbage collection
+            )
 
         except Exception as e:
             print(f"Failed to load cover image: {e}")
@@ -404,7 +464,9 @@ class LibraryGUI:
         copies_ent = tk.Entry(add_win)
         copies_ent.grid(row=4, column=1, padx=5, pady=5)
 
-        tk.Label(add_win, text="Description (Optional):").grid(row=5, column=0, padx=5, pady=5)
+        tk.Label(add_win, text="Description (Optional):").grid(
+            row=5, column=0, padx=5, pady=5
+        )
         description_ent = tk.Entry(add_win)
         description_ent.grid(row=5, column=1, padx=5, pady=5)
 
@@ -412,14 +474,17 @@ class LibraryGUI:
         def choose_image():
             file_path = filedialog.askopenfilename(
                 title="Select Book Cover Image",
-                filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.gif;*.bmp"), ("All Files", "*.*")]
+                filetypes=[
+                    ("Image Files", "*.png;*.jpg;*.jpeg;*.gif;*.bmp"),
+                    ("All Files", "*.*"),
+                ],
             )
             if file_path:
                 image_path.set(file_path)
 
-        tk.Button(add_win, text="Add Book Image (Optional)", command=choose_image).grid(row=6, column=0, columnspan=2,
-                                                                                        pady=10)
-
+        tk.Button(add_win, text="Add Book Image (Optional)", command=choose_image).grid(
+            row=6, column=0, columnspan=2, pady=10
+        )
 
         def confirm_add():
             from Classes.book import Book
@@ -433,7 +498,9 @@ class LibraryGUI:
                 book = Book.createBook(title, author, year, genre, copies)
                 self.library.addBook(book, self.current_user)
                 if description_ent.get().strip():
-                    description_decorated = DescriptionDecorator(book, description_ent.get().strip())
+                    description_decorated = DescriptionDecorator(
+                        book, description_ent.get().strip()
+                    )
                     self.library.add_decorated_book(description_decorated)
                 # Add cover decorator if image_path is set
                 if image_path.get():
@@ -446,11 +513,15 @@ class LibraryGUI:
                 self.perform_search()
                 add_win.destroy()
             except ValueError:
-                messagebox.showerror("Error", "Numeric values required for year/copies.")
+                messagebox.showerror(
+                    "Error", "Numeric values required for year/copies."
+                )
             except PermissionDeniedException:
                 messagebox.showerror("Error", "No permission to add books.")
 
-        tk.Button(add_win, text="Add", command=confirm_add).grid(row=7, column=0, columnspan=2, pady=10)
+        tk.Button(add_win, text="Add", command=confirm_add).grid(
+            row=7, column=0, columnspan=2, pady=10
+        )
 
     def handleRemoveBook(self):
         if not self.current_user:
@@ -471,12 +542,16 @@ class LibraryGUI:
             return
 
         sel_var = tk.StringVar(value=book_titles[0])
-        combo = ttk.Combobox(remove_win, textvariable=sel_var, values=book_titles, state="readonly")
+        combo = ttk.Combobox(
+            remove_win, textvariable=sel_var, values=book_titles, state="readonly"
+        )
         combo.pack(padx=5, pady=5)
 
         def confirm_remove():
             title = sel_var.get()
-            book = next((b for b in self.library.books.values() if b.title == title), None)
+            book = next(
+                (b for b in self.library.books.values() if b.title == title), None
+            )
             if not book:
                 messagebox.showerror("Error", "Book not found.")
                 return
@@ -515,7 +590,10 @@ class LibraryGUI:
                 messagebox.showinfo("Success", f"You borrowed '{btitle}'.")
                 self.perform_search()
             else:
-                messagebox.showwarning("Warning", f"No copies available for '{btitle}'. Subscribed for notifications.")
+                messagebox.showwarning(
+                    "Warning",
+                    f"No copies available for '{btitle}'. Subscribed for notifications.",
+                )
 
     def handleReturnBook(self):
         if not self.current_user:
@@ -544,7 +622,9 @@ class LibraryGUI:
 
     def handleApplyForNotifications(self):
         if not self.current_user:
-            messagebox.showwarning("Warning", "Must be logged in to apply for notifications.")
+            messagebox.showwarning(
+                "Warning", "Must be logged in to apply for notifications."
+            )
             return
         sel = self.book_listbox.curselection()
         if not sel:
@@ -555,14 +635,20 @@ class LibraryGUI:
         book = next((b for b in self.library.books.values() if b.title == btitle), None)
         if book:
             if self.current_user in book.user_observers:
-                messagebox.showinfo("Info", f"You are already subscribed to '{btitle}'.")
+                messagebox.showinfo(
+                    "Info", f"You are already subscribed to '{btitle}'."
+                )
             else:
                 book.attach(self.current_user)
-                messagebox.showinfo("Info", f"You subscribed to notifications for '{btitle}'.")
+                messagebox.showinfo(
+                    "Info", f"You subscribed to notifications for '{btitle}'."
+                )
 
     def handleRemoveFromNotifications(self):
         if not self.current_user:
-            messagebox.showwarning("Warning", "Must be logged in to remove notifications.")
+            messagebox.showwarning(
+                "Warning", "Must be logged in to remove notifications."
+            )
             return
         sel = self.book_listbox.curselection()
         if not sel:
@@ -574,17 +660,23 @@ class LibraryGUI:
         if book:
             if self.current_user in book.user_observers:
                 book.detach(self.current_user)
-                messagebox.showinfo("Info", f"You were removed from notifications for '{btitle}'.")
+                messagebox.showinfo(
+                    "Info", f"You were removed from notifications for '{btitle}'."
+                )
             else:
-                messagebox.showinfo("Info", f"You were not subscribed to '{btitle}' notifications.")
+                messagebox.showinfo(
+                    "Info", f"You were not subscribed to '{btitle}' notifications."
+                )
 
     def handleLogin(self):
         from login_gui import LoginGUI
+
         new_win = tk.Toplevel(self.root)
         LoginGUI(new_win)
 
     def handleRegister(self):
         from login_gui import LoginGUI
+
         new_win = tk.Toplevel(self.root)
         LoginGUI(new_win, signup_mode=True)
 
