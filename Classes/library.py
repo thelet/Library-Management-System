@@ -74,14 +74,18 @@ class Library(Subject, Observer):
             raise SignUpError(f"Username '{user_params['username']}' is already taken.")
 
     @permission_required("manage_users")
-    def signUp(self, user_params : dict[str,Any]):
-        from Classes.user import User, Librarian
+    def signUp(self, user_params: dict[str, Any]):
+        """
+        Signs up a new user or librarian.
+
+        :param user_params: dict - Contains 'username', 'password', and 'role'.
+        :return: User or Librarian instance.
+        """
         user = None
         self.validateSignUp(user_params)
         if user_params["role"] == "regular user":
             user = User.create_user(user_params["username"], user_params["password"])
             self.logger.log(f"\nUser {user.username} created successfully.\nUser Details:\n{user.__str__()}")
-
         elif user_params["role"] == "librarian":
             user = Librarian.create_librarian(user_params["username"], user_params["password"])
             self.logger.log(f"\nLibrarian {user.username} created successfully.\nLibrarian Details:\n{user.__str__()}")
@@ -89,10 +93,9 @@ class Library(Subject, Observer):
         if user is not None:
             user_id = user.id
             self.users[user_id] = user
-            self.notifyObservers(f"new {user_params["role"]} with username: {user.username} signed up successfully.")
-            csv_manager.upsert_obj_to_csv(user.to_json(),self.users_csv_file_path, csv_manager.user_headers_mapping)
+            self.notifyObservers(f"new {user_params['role']} with username: {user.username} signed up successfully.")
+            csv_manager.upsert_obj_to_csv(user.to_json(), self.users_csv_file_path, csv_manager.user_headers_mapping)
             print(f"added user to {self.users_csv_file_path}")
-
             return user
         else:
             raise SignUpError("Something went wrong during sign up. Please try again.")

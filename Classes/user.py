@@ -1,7 +1,8 @@
 # user.py
-import ast
-from typing import List, Any
 
+from typing import List, Any
+from werkzeug.security import generate_password_hash, check_password_hash
+import ast
 from design_patterns.observer import Observer, Subject
 from Classes.book import Book
 from design_patterns.function_decorator import permission_required
@@ -19,22 +20,46 @@ class User(Observer, Subject):
     Inherits from Observer (to get notifications) and Subject (can be observed, e.g., by other users or systems).
     """
 
-    def __init__(self, username: str, passwordHash: str, permissions: List[str] = None):
+    def __init__(self, username: str, password: str, permissions: List[str] = None):
         """
         :param username: str - The username of the user.
-        :param passwordHash: str - The hashed password for the user.
+        :param password: str - The plain-text password for the user. It will be hashed internally.
         :param permissions: List[str] - List of permissions. Defaults to USER_DEFAULT_PERMISSIONS if not provided.
         """
         self._id = User.user_id
         self.username = username
-        self.__passwordHash = passwordHash
+        self.__passwordHash = self.set_password(password)
         self.__permissions = permissions or USER_DEFAULT_PERMISSIONS
         self._borrowedBooks: List[Book] = []
         self.__temp_borrowedBooks: List[int] = []
         self._observers: List[Observer] = []  # Observers observing this user
         self.role = "regular user"
-        self.notifications : list[str] = []
-        self.__previously_borrowed_books : list[int] = []
+        self.notifications: list[str] = []
+        self.__previously_borrowed_books: list[int] = []
+
+    def set_password(self, password: str) -> str:
+        """
+        Generates a hashed password using Werkzeug and stores it.
+
+        :param password: str - The plain-text password.
+        :return: str - The hashed password.
+        """
+        return generate_password_hash(password)
+
+    def verify_password(self, password: str) -> bool:
+        """
+        Verifies a plain-text password against the stored hashed password.
+
+        :param password: str - The plain-text password to verify.
+        :return: bool - True if the password matches, False otherwise.
+        """
+        return check_password_hash(self.__passwordHash, password)
+
+    @property
+    def passwordHash(self) -> str:
+        return self.__passwordHash
+
+    # ... (rest of your properties, methods, and class definitions)
 
     @property
     def name(self) -> str:
@@ -92,21 +117,44 @@ class User(Observer, Subject):
 
 #------------- creating\loading users ----------------
 
+        # user.py
+
     @staticmethod
-    def create_user(username: str, passwordHash: str, permissions: List[str] = None):
+    def create_user(username: str, password: str, permissions: List[str] = None):
+        """
+        Creates a new user with a hashed password.
+
+        :param username: str - The username of the user.
+        :param password: str - The plain-text password for the user.
+        :param permissions: List[str] - Optional permissions list.
+        :return: User instance.
+        """
         while User.user_id in User.users_ids:
             User.user_id += 1
         User.users_ids.append(User.user_id)
-        return User(username, passwordHash, permissions)
+        return User(username, password, permissions)
 
     @staticmethod
-    def loaded_user(username: str, passwordHash: str, prev_id : int,  permissions: List[str] = None,
-                    temp_books : List[int] = None, prev_borrowed :List[int] = None) -> 'User':
-        new_user = User(username=username, passwordHash=passwordHash, permissions=permissions)
+    def loaded_user(username: str, passwordHash: str, prev_id: int, permissions: List[str] = None,
+                    temp_books: List[int] = None, prev_borrowed: List[int] = None) -> 'User':
+        """
+        Loads a user from stored data with an existing hashed password.
+
+        :param username: str - The username of the user.
+        :param passwordHash: str - The hashed password.
+        :param prev_id: int - The previous user ID.
+        :param permissions: List[str] - Optional permissions list.
+        :param temp_books: List[int] - List of currently borrowed book IDs.
+        :param prev_borrowed: List[int] - List of previously borrowed book IDs.
+        :return: User instance.
+        """
+        new_user = User(username=username, password=passwordHash, permissions=permissions)
         new_user.id = prev_id
         User.users_ids.append(new_user.id)
-        new_user.temp_borrowedBooks = temp_books
-        new_user.previously_borrowed_books = prev_borrowed
+        new_user.temp_borrowedBooks = temp_books or []
+        new_user.previously_borrowed_books = prev_borrowed or []
+        # Directly set the password hash since it's already hashed
+        new_user._User__passwordHash = passwordHash
         return new_user
 
     @staticmethod
@@ -182,6 +230,7 @@ class User(Observer, Subject):
 
 
 #------------------- json methods ----------------------
+        # user.py
 
     def to_json(self) -> dict:
         """
@@ -193,8 +242,8 @@ class User(Observer, Subject):
         return {
             "id": self.id,
             "username": self.username,
-            "passwordHash": self.__passwordHash,
-            "role" : self.role,
+            "passwordHash": self.__passwordHash,  # Already hashed
+            "role": self.role,
             "borrowed_books": temp_books,
             "previously_borrowed_books": prev_borrowed
         }
@@ -202,17 +251,19 @@ class User(Observer, Subject):
     @staticmethod
     def from_json(json: dict[str, Any]):
         if json["role"] == "regular user":
-            return User.loaded_user(username=str(json["username"]), passwordHash=str(json["passwordHash"]),
-                                    prev_id=int(json["id"]), temp_books=ast.literal_eval(json["borrowed_books"]),
-                                    prev_borrowed =ast.literal_eval(json["previously_borrowed_books"]))
-
+            return User.loaded_user(
+                username=str(json["username"]),
+                passwordHash=str(json["passwordHash"]),  # Assuming this is already hashed
+                prev_id=int(json["id"]),
+                temp_books=ast.literal_eval(json["borrowed_books"]),
+                prev_borrowed=ast.literal_eval(json["previously_borrowed_books"])
+            )
         elif json["role"] == "librarian":
             return Librarian.from_json_librarian(json)
         else:
             raise ValueError(f"Unknown role '{json['role']}'")
 
-
-#------------ other -----------------
+    #------------ other -----------------
     def __eq__(self, other):
         if isinstance(other, Book):
             return self.id == other.id

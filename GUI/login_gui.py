@@ -50,19 +50,20 @@ class LoginGUI:
             messagebox.showinfo("Success", f"{role} '{username}' created.")
             self.open_main_screen(user)
 
+        # gui_login.py
+
     def login(self, role: str):
         username = self.username_entry.get().strip()
         password = self.password_entry.get().strip()
 
-        # Find a user with these credentials
-        user = next((u for u in self.library.users.values()
-                     if u.username == username and u._User__passwordHash == password), None)
-        if user:
+        # Find a user with the given username
+        user = next((u for u in self.library.users.values() if u.username == username), None)
+
+        if user and user.verify_password(password):
             print(f"{username} login successful")
             self.open_main_screen(user)
         else:
             messagebox.showerror("Error", f"Invalid {role} credentials.")
-
 
     def guest_mode(self):
         # Guest has no user instance
