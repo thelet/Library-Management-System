@@ -497,13 +497,16 @@ class LibraryGUI:
                 copies = int(copies_ent.get().strip())
                 book = Book.createBook(title, author, year, genre, copies)
                 self.library.addBook(book, self.current_user)
-                if description_ent.get().strip():
+                if description_ent.get().strip() and image_path.get().strip():
+                    both_decorated = CoverDecorator(DescriptionDecorator(book, description_ent.get()), image_path.get())
+                    self.library.add_decorated_book(both_decorated)
+                elif description_ent.get().strip():
                     description_decorated = DescriptionDecorator(
                         book, description_ent.get().strip()
                     )
                     self.library.add_decorated_book(description_decorated)
                 # Add cover decorator if image_path is set
-                if image_path.get():
+                elif image_path.get():
                     cover_decorated = CoverDecorator(book, image_path.get())
                     self.library.add_decorated_book(cover_decorated)
 
@@ -512,10 +515,11 @@ class LibraryGUI:
                 # Refresh filter or default list
                 self.perform_search()
                 add_win.destroy()
-            except ValueError:
+            except ValueError as e:
                 messagebox.showerror(
                     "Error", "Numeric values required for year/copies."
                 )
+                print(f"error: {e}")
             except PermissionDeniedException:
                 messagebox.showerror("Error", "No permission to add books.")
 

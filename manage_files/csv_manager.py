@@ -1,5 +1,6 @@
 import csv
 import os
+from importlib.metadata import requires
 from typing import Any, Dict
 import json
 from pathlib import Path
@@ -357,17 +358,47 @@ def get_decorator_from_dict(deco_dict : Dict[str, Any]):
         return None
 
     deco_book = lb.books[int(deco_dict['id'])]
-    decor_type = deco_dict["type"]
-    decor_type_normalized = decor_type.strip().lower()
-    if decor_type_normalized == "cover_image":
-        print(f"loaded decorator for {deco_dict['id']}")
-        return CoverDecorator(deco_book, deco_dict["decorator"])
-    elif decor_type_normalized == "description":
-        print(f"loaded decorator for {deco_dict['id']}")
-        return DescriptionDecorator(deco_book, deco_dict["decorator"])
-    else:
-        print(f"Warning: invalid decorator type for decorator: {deco_dict['id']}, type: {decor_type}")
-        return None
+    types = [typ for typ in deco_dict["type"].split("###") if typ not in ["", " ", None]]
+    descriptions = [dec for dec in deco_dict["decorator"].split("###") if dec not in ["", " ", None]]
+    print(f"Types: {types} | Descriptions: {descriptions}")
+    decorator = None
+    for index in range(len(types)):
+        print(f"{index}")
+        decor_type = types[index]
+        decor_desc = descriptions[index]
+        decor_type_normalized = decor_type.strip().lower()
+        if decor_type_normalized == "cover_image":
+            print(f"loaded decorator for {deco_dict['id']}")
+            if decorator is None:
+                decorator = CoverDecorator(deco_book, decor_desc)
+            else:
+                decorator = CoverDecorator(decorator, decor_desc)
+        elif decor_type_normalized == "description":
+            print(f"loaded decorator for {deco_dict['id']}")
+            if decorator is None:
+                decorator = DescriptionDecorator(deco_book, decor_desc)
+            else:
+                decorator = DescriptionDecorator(decorator, decor_desc)
+        else:
+            print(f"Warning: invalid decorator type for decorator: {deco_dict['id']}, type: {decor_type}")
+    return decorator
+
+
+
+"""
+decor_type = deco_dict["type"]
+decor_type_normalized = decor_type.strip().lower()
+if decor_type_normalized == "cover_image":
+    print(f"loaded decorator for {deco_dict['id']}")
+    return CoverDecorator(deco_book, deco_dict["decorator"])
+elif decor_type_normalized == "description":
+    print(f"loaded decorator for {deco_dict['id']}")
+    return DescriptionDecorator(deco_book, deco_dict["decorator"])
+else:
+    print(f"Warning: invalid decorator type for decorator: {deco_dict['id']}, type: {decor_type}")
+    return None
+"""
+
 
 def format_json_dict(json_dict):
     """
@@ -428,6 +459,23 @@ def remove_book_from_csv(book_id: int, csv_file_path: str):
         if temp_file.exists():
             temp_file.unlink()  # Remove the temp file in case of failure
 
+def update_csv(args_list : list[dict:str,Any]):
+    """
+    :param args_list: list[dict] - The list of arguments to execute upsert functions with.
+    """
+    required_args = ["obj_data", "csv_file_path", "headers_mapping"]
+    for args in args_list:
+        missing_args = [arg for arg in required_args if arg not in args]
+        if missing_args:
+            raise ValueError(f"Error when passing args for writing to file : Missing arguments: {[arg for arg in missing_args]} \n"
+                             f"Required arguments: {required_args}"
+                             f"Received args: {args}")
+
+        empty_args = [(arg_key,arg) for arg_key, arg in args.items() if arg is None or arg in ["", " "]]
+        if empty_args:
+            print(f"Error when passing args for writing to file : Empty arguments: {empty_args} \n")
+
+        upsert_obj_to_csv(obj_data= args["obj_data"], csv_file_path= args["csv_file_path"], headers_mapping= args["headers_mapping"])
 
 def main():
     from Classes.user import User
@@ -435,9 +483,14 @@ def main():
     from Classes.library import Library
     lb = Library().getInstance()
 
-    books_csv_path = r"C:\Users\thele\Documents\PythonProject\oop_ex_3\data_files\CSV_data\books.csv"
-    #users_csv_path =r"C:\Users\thele\Documents\PythonProject\oop_ex_3\data_files\CSV_data\users_1.csv"
+    #args1 = {"obj_data" : {"a" : "b", "c" : [1,2,3]}}
+    #args1 = {"obj_data" : {"a" : "b", "c" : [1,2,3]}, "csv_file_path": None, "headers_mapping": {"h1" : "a", "h2" : "b", "h3" : "c"}}
+    #args2 = {"obj_data" : {"a" : "b", "c" : [1,2,3]}, "csv_file_path": "aaaaa", "headers_mapping": {"h1" : "a", "h2" : "b", "h3" : "c"}}
+    #update_csv([args2, args1])
 
+    #books_csv_path = r"C:\Users\thele\Documents\PythonProject\oop_ex_3\data_files\CSV_data\books.csv"
+    #users_csv_path =r"C:\Users\thele\Documents\PythonProject\oop_ex_3\data_files\CSV_data\users_1.csv"
+'''
     books_dictionary = load_objs_dict_from_csv(books_csv_path, book_headers_mapping, "Book")
     for obj_id, obj in books_dictionary.items():
         print(f"{obj_id} : {obj}")
@@ -456,7 +509,7 @@ def main():
     #for obj_id, obj in users_dictionary.items():
     #    print(f"{obj_id} : {obj}")
 
-
+'''
 
 if __name__ == "__main__":
     main()

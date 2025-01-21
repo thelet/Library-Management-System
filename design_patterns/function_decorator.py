@@ -3,6 +3,11 @@ from design_patterns.exceptions import PermissionDeniedException
 import functools
 import inspect
 from manage_files import csv_manager
+# design_patterns/function_decorator.py
+
+from typing import Callable, Any, List, Dict
+from functools import wraps
+from manage_files.csv_manager import update_csv
 
 def permission_required(permission: str):
     """
@@ -84,3 +89,80 @@ def upsert_after(obj_arg_name, csv_file_path_attr, headers_mapping_attr):
         return wrapper_upsert
 
     return decorator_upsert
+
+
+
+def update_csv_after(upsert_configs: List[Dict[str, str]]):
+    """
+    Decorator to perform multiple CSV upsert operations after the wrapped function executes.
+
+    :param upsert_configs: List of dictionaries with keys:
+                           - 'obj_arg_name': Name of the function argument that holds the object to upsert.
+                           - 'csv_file_path_attr': Attribute name in 'self' that holds the CSV file path.
+                           - 'headers_mapping_attr': Attribute name in 'self' that holds the headers mapping.
+    """
+
+    def decorator(func: Callable):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Execute the wrapped function
+            result = func(*args, **kwargs)
+
+            # Assume 'self' is the first positional argument
+            if not args:
+                print("Decorator Error: 'self' is expected as the first positional argument.")
+                return result
+
+            self_obj = args[0]
+
+            # Prepare the list of upsert arguments
+            args_list = []
+            for config in upsert_configs:
+                obj_arg_name = config.get("obj_arg_name")
+                csv_file_path_attr = config.get("csv_file_path_attr")
+                headers_mapping_attr = config.get("headers_mapping_attr")
+
+                # Extract the object to upsert from kwargs or args
+                obj = kwargs.get(obj_arg_name)
+                if not obj:
+                    # Attempt to get from positional args (assuming object is after 'self')
+                    obj_index = list(func.__code__.co_varnames).index(obj_arg_name)
+                    if obj_index < len(args):
+                        obj = args[obj_index]
+
+                if not obj:
+                    print(f"Decorator Warning: Object '{obj_arg_name}' not found in function arguments.")
+                    continue  # Skip this upsert operation
+
+                # Extract CSV file path and headers mapping from 'self'
+                csv_file_path = getattr(self_obj, csv_file_path_attr, None)
+                headers_mapping = getattr(self_obj, headers_mapping_attr, None)
+
+                if not csv_file_path or not headers_mapping:
+                    print(
+                        f"Decorator Warning: Attributes '{csv_file_path_attr}' or '{headers_mapping_attr}' not found in 'self'.")
+                    continue  # Skip this upsert operation
+
+                # Prepare the upsert argument dictionary
+                upsert_args = {
+                    "obj_data": obj.to_json(),
+                    "csv_file_path": csv_file_path,
+                    "headers_mapping": headers_mapping
+                }
+                args_list.append(upsert_args)
+
+            # Perform the CSV updates if there are any upsert operations
+            if args_list:
+                try:
+                    update_csv(args_list)
+                except ValueError as ve:
+                    print(f"Decorator Error: {ve}")
+                except Exception as e:
+                    print(f"Decorator Unexpected Error: {e}")
+
+            return result
+
+        return wrapper
+
+    return decorator
+

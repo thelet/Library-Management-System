@@ -2,7 +2,7 @@
 import os
 
 from Classes import user
-from design_patterns.function_decorator import permission_required, upsert_after
+from design_patterns.function_decorator import permission_required, upsert_after, update_csv_after
 from design_patterns.observer import Subject, Observer
 from design_patterns.strategy import SearchStrategy
 from design_patterns.exceptions import PermissionDeniedException, BookNotFoundException, SignUpError
@@ -17,7 +17,21 @@ if TYPE_CHECKING:
     #from user import User, Librarian
     from design_patterns.decorator import BookDecorator, CoverDecorator
 
-
+user_args_for_csv_update_wrapper =  {
+            "obj_arg_name": "user",
+            "csv_file_path_attr": "users_csv_file_path",
+            "headers_mapping_attr": "user_headers_mapping"
+        }
+book_args_for_csv_update_wrapper ={
+            "obj_arg_name": "book",
+            "csv_file_path_attr": "books_csv_file_path",
+            "headers_mapping_attr": "book_headers_mapping"
+        }
+dec_book_args_for_csv_update_wrapper = {
+    "obj_arg_name": "deco_book",
+    "csv_file_path_attr": "book_decorators_file_path",
+    "headers_mapping_attr": "book_deco_headers_mapping"
+}
 
 class Library(Subject, Observer):
     """
@@ -104,7 +118,7 @@ class Library(Subject, Observer):
 
     # ------------- Book Management -------------
     @permission_required("manage_books")
-    @upsert_after(obj_arg_name='book', csv_file_path_attr='books_csv_file_path', headers_mapping_attr='book_headers_mapping')
+    @update_csv_after([book_args_for_csv_update_wrapper])
     def addBook(self, book: Book, caller: Optional['User'] = None):
         """
         If 'caller' is a librarian or has 'manage_books', add the book.
@@ -138,11 +152,12 @@ class Library(Subject, Observer):
         else:
             raise BookNotFoundException(book.title)
 
+    @update_csv_after([dec_book_args_for_csv_update_wrapper])
     def add_decorated_book(self, deco_book: 'BookDecorator'):
         if deco_book.id in self.books.keys():
             self.decorated_books.update({deco_book.id : deco_book})
             print(f"added decorator: {deco_book.id}")
-            csv_manager.upsert_obj_to_csv(deco_book.toJson(),self.book_decorators_file_path, self.book_deco_headers_mapping)
+            #csv_manager.upsert_obj_to_csv(deco_book.toJson(),self.book_decorators_file_path, self.book_deco_headers_mapping)
 
 
     # ----------- Searching and Filters-------------
@@ -161,7 +176,7 @@ class Library(Subject, Observer):
 
     # ------------- Lending / Returning -------------
     @permission_required("borrow")
-    @upsert_after(obj_arg_name='book', csv_file_path_attr='books_csv_file_path',headers_mapping_attr='book_headers_mapping')
+    @update_csv_after([user_args_for_csv_update_wrapper, book_args_for_csv_update_wrapper])
     def lendBook(self, user: 'User', book: Book) -> bool:
         """
         Let user borrow if copies > 0.
@@ -173,7 +188,7 @@ class Library(Subject, Observer):
             book.borrowed_users.append(user.id)
             self.notifyObservers(f"{user.username} borrowed '{book.title}'.")
             self.logger.log(f"User {user.username} borrowed book: '{book.title}' .")
-            csv_manager.upsert_obj_to_csv(user.to_json(), self.users_csv_file_path, csv_manager.user_headers_mapping)
+            #csv_manager.upsert_obj_to_csv(user.to_json(), self.users_csv_file_path, csv_manager.user_headers_mapping)
             return True
         else:
             print(f"No copies available for '{book.title}'.")
@@ -183,7 +198,7 @@ class Library(Subject, Observer):
             return False
 
     @permission_required("return")
-    @upsert_after(obj_arg_name='book', csv_file_path_attr='books_csv_file_path',headers_mapping_attr='book_headers_mapping')
+    @update_csv_after([user_args_for_csv_update_wrapper, book_args_for_csv_update_wrapper])
     def returnBook(self, user: 'User', book: Book) -> bool:
         """
         Let user return if they do indeed have it.
@@ -194,7 +209,7 @@ class Library(Subject, Observer):
             print(f"returned book: {book}")
             self.notifyObservers(f"{user.username} returned '{book.title}'.")
             self.logger.log(f"User {user.username} returned '{book.title}'.")
-            csv_manager.upsert_obj_to_csv(user.to_json(), self.users_csv_file_path, csv_manager.user_headers_mapping)
+            #csv_manager.upsert_obj_to_csv(user.to_json(), self.users_csv_file_path, csv_manager.user_headers_mapping)
             return True
         else:
             print(f"{user.username} does not have '{book.title}' borrowed.")
