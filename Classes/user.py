@@ -2,9 +2,9 @@
 import ast
 from typing import List, Any
 
-from observer import Observer, Subject
+from design_patterns.observer import Observer, Subject
 from Classes.book import Book
-from function_decorator import permission_required
+from design_patterns.function_decorator import permission_required
 
 # Default permissions
 USER_DEFAULT_PERMISSIONS = ["borrow", "return"]

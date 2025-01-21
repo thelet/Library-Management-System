@@ -1,5 +1,5 @@
 from functools import wraps
-from exceptions import PermissionDeniedException
+from design_patterns.exceptions import PermissionDeniedException
 import functools
 import inspect
 from manage_files import csv_manager

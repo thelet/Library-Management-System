@@ -5,10 +5,10 @@ from typing import Optional
 from Classes.library import Library
 from Classes.user import User, Librarian
 from Classes.book import Book
-from decorator import DescriptionDecorator, CoverDecorator
-from logger import Logger
-from strategy import SearchByTitle, SearchByAuthor, SearchByCategory
-from exceptions import PermissionDeniedException
+from design_patterns.decorator import DescriptionDecorator, CoverDecorator
+from design_patterns.logger import Logger
+from design_patterns.strategy import SearchByTitle, SearchByAuthor, SearchByCategory
+from design_patterns.exceptions import PermissionDeniedException
 
 
 class LibraryGUI:
@@ -310,7 +310,7 @@ class LibraryGUI:
 
     # ----------------- Book Selection ----------------- #
     def on_book_select(self, event):
-        from JSON_manager import format_json_dict
+        from manage_files.csv_manager import format_json_dict
         """Show details for the selected book, highlight Return button if user has borrowed it."""
         selection = event.widget.curselection()
         # Check if a previous image exists, remove it
@@ -434,11 +434,11 @@ class LibraryGUI:
                 self.library.addBook(book, self.current_user)
                 if description_ent.get().strip():
                     description_decorated = DescriptionDecorator(book, description_ent.get().strip())
-                    self.library.decorated_books[book.id] = description_decorated
+                    self.library.add_decorated_book(description_decorated)
                 # Add cover decorator if image_path is set
                 if image_path.get():
                     cover_decorated = CoverDecorator(book, image_path.get())
-                    self.library.decorated_books[book.id] =cover_decorated
+                    self.library.add_decorated_book(cover_decorated)
 
                 self.logger.log(f"{self.current_user.username} added '{title}'.")
                 messagebox.showinfo("Success", f"Book '{title}' added.")

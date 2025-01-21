@@ -1,8 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 from Classes.library import Library
-from Classes.user import User, Librarian
-from exceptions import SignUpError
+from design_patterns.exceptions import SignUpError
 
 
 class LoginGUI:

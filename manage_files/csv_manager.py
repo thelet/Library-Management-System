@@ -97,10 +97,12 @@ def load_objs_dict_from_csv(csv_file_path: str, headers_mapping: dict[str, str],
             elif obj_type == 'Book':
                 from Classes.book import Book
                 obj_instance = Book.from_json(json_data)
+            elif obj_type == 'book_decorator':
+                obj_instance = get_decorator_from_dict(json_data)
             else:
                 raise ValueError(f"Error while loading users from csv: unknown obj type : {obj_type}")
-
-            objects[obj_instance.id] = obj_instance
+            if obj_instance is not None:
+                objects[int(json_data["id"])] = obj_instance
 
     return objects
 
@@ -340,24 +342,38 @@ def upsert_obj_to_csv(
     except IOError as e:
         raise IOError(f"An I/O error occurred: {e}")
     except Exception as e:
-        raise Exception(f"An unexpected error occurred: {e}")
+        raise Exception(f"An unexpected error occurred: {e}. func args = {obj_data}, {csv_file_path}, {headers_mapping}")
 
 
-def get_decorator_from_dict(self, deco_dict : Dict[str, Any]):
+def get_decorator_from_dict(deco_dict : Dict[str, Any]):
     from Classes.library import Library
-    from decorator import CoverDecorator, DescriptionDecorator
+    from design_patterns.decorator import CoverDecorator, DescriptionDecorator
 
-    lb = Library().getInstance()
-    if int(deco_dict['id']) not in lb.books.keys():
+    lb = Library.getInstance()
+    if (int(deco_dict['id'])) not in lb.books.keys():
         print(f"Warning: Book {deco_dict['id']} not found, when it's decorator exist")
+        print(lb.books.keys())
         return None
 
     deco_book = lb.books[int(deco_dict['id'])]
-    if "cover_image" in deco_dict.keys():
-        d_book = CoverDecorator(deco_book, deco_dict["cover_image"])
-    elif "description" in deco_dict.keys():
-        d_book = DescriptionDecorator(deco_book, deco_dict["description"])
+    decor_type = deco_dict["type"]
+    decor_type_normalized = decor_type.strip().lower()
+    if decor_type_normalized == "cover_image":
+        print(f"loaded decorator for {deco_dict['id']}")
+        return CoverDecorator(deco_book, deco_dict["decorator"])
+    elif decor_type_normalized == "description":
+        print(f"loaded decorator for {deco_dict['id']}")
+        return DescriptionDecorator(deco_book, deco_dict["decorator"])
+    else:
+        print(f"Warning: invalid decorator type for decorator: {deco_dict['id']}, type: {decor_type}")
+        return None
 
+def format_json_dict(json_dict):
+    """
+    Format a JSON-like dictionary into a string where each key-value pair is separated by \n
+    and the curly braces are removed.
+    """
+    return "\n".join(f"{key}: {value}" for key, value in json_dict.items())
 
 def main():
     from Classes.user import User

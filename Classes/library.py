@@ -1,21 +1,21 @@
 # library.py
+import os
+
 from Classes import user
-from function_decorator import permission_required, upsert_after
-from observer import Subject, Observer
-from strategy import SearchStrategy
-from exceptions import PermissionDeniedException, BookNotFoundException, SignUpError
-import GUI.JSON_manager as JS_mng
-from GUI.JSON_manager import *
-from logger import Logger
+from design_patterns.function_decorator import permission_required, upsert_after
+from design_patterns.observer import Subject, Observer
+from design_patterns.strategy import SearchStrategy
+from design_patterns.exceptions import PermissionDeniedException, BookNotFoundException, SignUpError
+from design_patterns.logger import Logger
 from Classes.book import Book
 from Classes.user import User, Librarian
 from manage_files import csv_manager
 # Forward references to avoid circular imports
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional,List
 
 if TYPE_CHECKING:
     #from user import User, Librarian
-    from decorator import BookDecorator, CoverDecorator
+    from design_patterns.decorator import BookDecorator, CoverDecorator
 
 
 
@@ -133,6 +133,11 @@ class Library(Subject, Observer):
         else:
             raise BookNotFoundException(book.title)
 
+    def add_decorated_book(self, deco_book: 'BookDecorator'):
+        if deco_book.id in self.books.keys():
+            self.decorated_books.update({deco_book.id : deco_book})
+            print(f"added decorator: {deco_book.id}")
+            csv_manager.upsert_obj_to_csv(deco_book.toJson(),self.book_decorators_file_path, self.book_deco_headers_mapping)
 
 
     # ----------- Searching and Filters-------------
@@ -249,78 +254,51 @@ class Library(Subject, Observer):
         self.books_csv_file_path = csv_file_path
         #search if decorators exist and if they do, loading them
         try:
-            self.load_decorators_from_json(csv_file_path)
+            self.load_decorators_from_csv(csv_file_path)
         except FileNotFoundError:
             print(f"No decorators for books available for '{csv_file_path}'.")
 
 
     def after_login(self):
         from manage_files import csv_manager
-        csv_manager.connect_books_and_users(self.users, self.books)
         if self.users_csv_file_path is None:
             self.users_csv_file_path = csv_manager.create_empty_files(self.books_csv_file_path,
                                                                       self.user_headers_mapping.values(), "_users")
         if self.books_csv_file_path is None:
             self.books_csv_file_path = csv_manager.create_empty_files(self.users_csv_file_path,
                                                                       self.book_headers_mapping.values(), "_books")
-        self.book_decorators_file_path = csv_manager.create_empty_files(self.books_csv_file_path, self.book_deco_headers_mapping.values(), "_book_decorators")
+        if self.book_decorators_file_path is None:
+            self.book_decorators_file_path = csv_manager.create_empty_files(self.books_csv_file_path,
+                                                                            self.book_deco_headers_mapping.values(), "_book_decorators")
+        csv_manager.connect_books_and_users(self.users, self.books)
 
+    def load_decorators_from_csv(self, books_csv_file_path: str):
+        # Split the path into directory and filename
+        directory, filename = os.path.split(books_csv_file_path)
+        name, ext = os.path.splitext(filename)
+        new_file_name = f"{name}_book_decorators{ext}"
+        csv_file_path = os.path.join(directory, new_file_name)
 
-    def load_decorators_from_json(self, csv_path):
-        from decorator import CoverDecorator, DescriptionDecorator
-        json_path = os.path.join(os.path.splitext(csv_path)[0], "decorators")
-        # Ensure the directory exists
-        if not os.path.isdir(json_path):
-            raise FileNotFoundError(f"The directory '{json_path}' does not exist.")
+        # Check if the new CSV file exists
+        if os.path.exists(csv_file_path):
+            print(f"found decorators file '{csv_file_path}'.")
+            self.decorated_books = csv_manager.load_objs_dict_from_csv(csv_file_path,
+                                                                       self.book_deco_headers_mapping, "book_decorator")
+            self.book_decorators_file_path = csv_file_path
+            print(f"loaded decorators file '{self.book_decorators_file_path}'.")
+        else:
+            print(f"decorators file '{csv_file_path}' does not exist.")
 
-        decorator_obj = []
-        # Iterate over all files in the directory
-        for filename in os.listdir(json_path):
-            file_path = os.path.join(json_path, filename)
-            if filename.endswith(".json") and os.path.isfile(file_path):
-                try:
-                    with open(file_path, "r", encoding="utf-8") as json_file:
-                        json_data = json.load(json_file)
-                        if "cover_image" in json_data:
-                            d_book = CoverDecorator(self.books.get(int(filename[:-5])), json_data["cover_image"])
-                            self.decorated_books[int(filename[:-5])] = d_book
-                        if "description" in json_data:
-                            d_book = DescriptionDecorator(self.books.get(int(filename[:-5])), json_data["description"])
-                            self.decorated_books[int(filename[:-5])] = d_book
-                except json.JSONDecodeError as e:
-                    print(f"Failed to parse JSON file '{filename}': {e}")
-                except Exception as e:
-                    print(f"An error occurred while reading '{filename}': {e}")
 
 
 
     def export_users_to_csv(self, csv_path):
-        root_dir = os.path.join(Library.json_dirs, "exported_users")
-        JS_mng.write_json_obj(self.users.values(), root_dir, "users")
-        JS_mng.jsons_to_csv_with_mapping(os.path.join(root_dir, "users_json"), csv_path , JS_mng.user_headers_mapping)
-        print(f"Exported users to {csv_path}.")
-        self.logger.log(f"Exported users to {csv_path}.")
+        pass
 
     def export_books_to_csv(self,csv_path):
-        root_dir = os.path.join(Library.json_dirs, "exported_books")
-        JS_mng.write_json_obj(self.books.values(), root_dir, "books")
-        JS_mng.jsons_to_csv_with_mapping(os.path.join(root_dir, "books_json"), csv_path, JS_mng.book_headers_mapping)
-        print(f"Exported books to {csv_path}.")
-        if self.decorated_books is not None and len(self.decorated_books) > 0:
-            self.export_decorators_to_json(csv_path[:-4])
-        self.logger.log(f"Exported books to {csv_path}.")
+        pass
 
-    def export_decorators_to_json(self, csv_path):
-        root_dir = os.path.join(csv_path, "decorators")
-        os.makedirs(root_dir, exist_ok=True)
-        for b_id in self.decorated_books.keys():
-            d_book = self.decorated_books[b_id]
-            file_name = f"{b_id}.json"
-            file_path = os.path.join(root_dir, file_name)
-            with open(file_path, 'w', encoding='utf-8') as json_file:
-                print(d_book.getDetails())
-                json.dump(d_book.getDetails(), json_file, indent=4)
-        print(f"Exported decorators to {root_dir}.")
+
 
 
     def to_json(self) -> dict:

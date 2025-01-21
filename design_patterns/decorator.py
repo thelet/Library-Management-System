@@ -1,5 +1,4 @@
 
-
 from abc import ABC, abstractmethod
 from typing import Any
 from Classes.book import Book
@@ -17,9 +16,14 @@ class BookDecorator(ABC):
     """
     def __init__(self, wrapped_book: Book):
         self._wrapped_book = wrapped_book
+        self.id = self._wrapped_book.id
 
     @abstractmethod
     def getDetails(self) -> dict[str, Any]:
+        """Must be implemented by concrete decorators."""
+        pass
+    @abstractmethod
+    def toJson(self) -> dict[str, Any]:
         """Must be implemented by concrete decorators."""
         pass
 
@@ -41,6 +45,14 @@ class DescriptionDecorator(BookDecorator):
             })
         return base_details
 
+    def toJson(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "type": "description",
+            "decorator": self.description
+        }
+
+
 
 
 class CoverDecorator(BookDecorator):
@@ -55,6 +67,12 @@ class CoverDecorator(BookDecorator):
         base_details = self._wrapped_book.getDetails()
         base_details.update({"cover_image": self.cover_image})
         return base_details
+    def toJson(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "type": "cover_image",
+            "decorator": self.cover_image
+        }
 
 
 

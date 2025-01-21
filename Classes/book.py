@@ -2,7 +2,7 @@
 import ast
 import time
 from typing import List, Any, TYPE_CHECKING
-from observer import Subject, Observer
+from design_patterns.observer import Subject, Observer
 if TYPE_CHECKING:
     from Classes.user import User
 
