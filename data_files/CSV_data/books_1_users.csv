@@ -1,4 +1,2 @@
 user_id,username,password,borrowed_books,role,previously_borrowed_books
-0,holds_lost_books,scrypt:32768:8:1$Y4a0NDplc79eCPK5$8d9f7d032cce39dbf7ab015979e0955f5a5cc62654114a98bc6e8a2e701cb2a525be84e2c0b116790ae27c94917b429fa3298b81996feb0a777e2c220b68ceeb,"[1, 1, 2, 2, 5, 6, 6, 6, 7, 9, 11, 14, 14, 16, 18, 19, 19, 19, 20, 21, 21, 23, 23, 23, 25, 27, 27, 27, 27, 28, 28, 30, 30, 30, 30, 30, 32, 32, 32, 32, 34, 34]",regular user,[]
-1,user1,scrypt:32768:8:1$U9kPEV8pF7Z5IGWP$fe9f9d1222e8601e42ae249f1480ede9065964e389467e5e8f6c7390a996495c03b348b85479014f0b4e3cd91e79409783f48ec37f7f62e511dc2de4ccfafad4,[],librarian,[]
-2,user2,scrypt:32768:8:1$suwTfcCqxwud6GeF$0429beaf5c4bc1d8830d5398315fc5830f5c0f4bb6290ee1134438f4895c9666bfcf3d52b8345ee763f5237d7d924d04877eadd0e1b72000b749e6dcab18a717,[],librarian,[]
+0,holds_lost_books,scrypt:32768:8:1$ODyOzc05Q0L1DkSd$f06ccced4470fa6fb21c32aff5e5b7ce124b8e50f27bee2b3cb5d55d13b9d605eabb9dda63b19f5c9468ca283af66dc42b23d46ee4a681706c69c7af137108e5,"[1, 1, 1, 2, 2, 4, 5, 7, 7, 9, 11, 14, 14, 16, 18, 19, 19, 19, 20, 21, 21, 23, 23, 23, 25, 27, 27, 27, 27, 28, 28, 30, 30, 30, 30, 30, 32, 32, 32, 32, 33, 34, 34, 41, 45]",regular user,[]

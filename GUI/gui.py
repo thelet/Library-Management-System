@@ -320,7 +320,11 @@ class LibraryGUI:
                     return {b for b in books_set if b.category == selected_genre}
             return books_set
         elif chosen_filter == "Popular Books":
-            return set(self.library.getPopularBooks())
+            try:
+                popular_books = set(self.library.getPopularBooks())
+            except BookNotFoundException:
+                popular_books = set()
+            return popular_books
         elif chosen_filter == "My Books":
             if self.current_user:
                 return {
@@ -693,31 +697,4 @@ class LibraryGUI:
             messagebox.showinfo("Logout", "Guest session ended.")
         self.root.destroy()
 
-    # ------------- Export CSV -------------
-    def handleExportUsersCSV(self):
-        csv_path = filedialog.asksaveasfilename(
-            title="Export Users CSV",
-            defaultextension=".csv",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
-        )
-        if not csv_path:
-            return
-        try:
-            self.library.export_users_to_csv(csv_path)
-            messagebox.showinfo("Export", f"Users exported successfully to {csv_path}.")
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to export users CSV: {e}")
 
-    def handleExportBooksCSV(self):
-        csv_path = filedialog.asksaveasfilename(
-            title="Export Books CSV",
-            defaultextension=".csv",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
-        )
-        if not csv_path:
-            return
-        try:
-            self.library.export_books_to_csv(csv_path)
-            messagebox.showinfo("Export", f"Books exported successfully to {csv_path}.")
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to export books CSV: {e}")

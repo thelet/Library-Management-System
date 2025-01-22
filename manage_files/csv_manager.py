@@ -203,10 +203,12 @@ def reconnect_obs_list(ids_list, obj_dict: dict[int, 'User'] or dict[int, 'Book'
     return obj_list, not_found
 
 def reconnect_borrowed_books(users_dict : dict[int, 'User'], books_dict: dict[int, 'Book']):
+    not_found = []
     for user in users_dict.values():
         books_list, not_found = reconnect_obs_list(user.temp_borrowedBooks, books_dict)
         user.borrowedBooks = books_list
         user.temp_borrowedBooks = not_found
+    if not_found and len(not_found) > 0:
         print(f"users not found when trying to connect books: {not_found}")
 
 def reattached_observers(books_dict : dict[int ,'Book'], users_dict : dict[int, 'User']):
@@ -216,10 +218,8 @@ def reattached_observers(books_dict : dict[int ,'Book'], users_dict : dict[int, 
             temp_followers = loaded_book.temp_followers
             not_found = set()
             for user_id in temp_followers:
-                print(f"searching for user: {user_id}")
                 if user_id in users_dict:
                     loaded_book.user_observers.append(users_dict[user_id])
-                    print(f" found user: {user_id}, left users: {temp_followers}")
                 else:
                     print(f"Warning: User {user_id} not found")
                     not_found.add(user_id)
@@ -234,12 +234,10 @@ def connect_lost_books(books_dict : dict[int, 'Book'], users_dict : dict[int, 'U
         # we attach the books to a dedicated library user in order to be able to test on them.
         for use_id in book.borrowed_users:
             if use_id == 0 or use_id not in users_dict.keys():
-                print(f"user: {use_id} not found, attaching lost book {book.title}")
+                print(f"user: {use_id} not found, attaching lost book '{book.title}'")
                 book.updateCopies(1)
                 book.borrowed_users.remove(use_id)
                 lib.lendBook(lib.lost_books_user, book)
-        print(book)
-        lib.logger.log(f"{book.__str__()}")
 
 def create_empty_files(csv_file_path, headers_list, file_name_adder :str):
     # Split the original file into base (without extension) and the extension
@@ -325,13 +323,11 @@ def upsert_obj_to_csv(
                 # Overwrite the existing row
                 rows[index] = row_data
                 row_found = True
-                print(f"Updated existing row with id={obj_id}.")
                 break
 
         if not row_found:
             # Append the new row
             rows.append(row_data)
-            print(f"Appended new row with id={obj_id}.")
 
         # Step 5: Write all rows back to the CSV
         with open(csv_file_path, mode='w', encoding='utf-8', newline='') as outfile:
@@ -354,27 +350,22 @@ def get_decorator_from_dict(deco_dict : Dict[str, Any]):
     lb = Library.getInstance()
     if (int(deco_dict['id'])) not in lb.books.keys():
         print(f"Warning: Book {deco_dict['id']} not found, when it's decorator exist")
-        print(lb.books.keys())
         return None
 
     deco_book = lb.books[int(deco_dict['id'])]
     types = [typ for typ in deco_dict["type"].split("###") if typ not in ["", " ", None]]
     descriptions = [dec for dec in deco_dict["decorator"].split("###") if dec not in ["", " ", None]]
-    print(f"Types: {types} | Descriptions: {descriptions}")
     decorator = None
     for index in range(len(types)):
-        print(f"{index}")
         decor_type = types[index]
         decor_desc = descriptions[index]
         decor_type_normalized = decor_type.strip().lower()
         if decor_type_normalized == "cover_image":
-            print(f"loaded decorator for {deco_dict['id']}")
             if decorator is None:
                 decorator = CoverDecorator(deco_book, decor_desc)
             else:
                 decorator = CoverDecorator(decorator, decor_desc)
         elif decor_type_normalized == "description":
-            print(f"loaded decorator for {deco_dict['id']}")
             if decorator is None:
                 decorator = DescriptionDecorator(deco_book, decor_desc)
             else:
@@ -383,21 +374,6 @@ def get_decorator_from_dict(deco_dict : Dict[str, Any]):
             print(f"Warning: invalid decorator type for decorator: {deco_dict['id']}, type: {decor_type}")
     return decorator
 
-
-
-"""
-decor_type = deco_dict["type"]
-decor_type_normalized = decor_type.strip().lower()
-if decor_type_normalized == "cover_image":
-    print(f"loaded decorator for {deco_dict['id']}")
-    return CoverDecorator(deco_book, deco_dict["decorator"])
-elif decor_type_normalized == "description":
-    print(f"loaded decorator for {deco_dict['id']}")
-    return DescriptionDecorator(deco_book, deco_dict["decorator"])
-else:
-    print(f"Warning: invalid decorator type for decorator: {deco_dict['id']}, type: {decor_type}")
-    return None
-"""
 
 
 def format_json_dict(json_dict):
@@ -434,7 +410,6 @@ def remove_book_from_csv(book_id: int, csv_file_path: str):
 
             writer = csv.DictWriter(temp_csvfile, fieldnames=fieldnames)
             writer.writeheader()
-
             removed = False
             for row in reader:
                 try:
@@ -447,12 +422,6 @@ def remove_book_from_csv(book_id: int, csv_file_path: str):
                     print(f"Invalid ID value in row: {row}")
                 except Exception as e:
                     print(f"Error processing row {row}: {e}")
-
-            if removed:
-                print(f"Book with ID {book_id} removed from CSV.")
-            else:
-                print(f"Book with ID {book_id} not found in CSV.")
-
         # Replace original CSV with the temp file
         temp_file.replace(path)
     except FileNotFoundError:
@@ -461,6 +430,8 @@ def remove_book_from_csv(book_id: int, csv_file_path: str):
         print(f"Failed to remove book from CSV: {e}")
         if temp_file.exists():
             temp_file.unlink()  # Remove the temp file in case of failure
+    return removed
+
 
 def update_csv(args_list : list[dict:str,Any]):
     """
@@ -480,39 +451,3 @@ def update_csv(args_list : list[dict:str,Any]):
 
         upsert_obj_to_csv(obj_data= args["obj_data"], csv_file_path= args["csv_file_path"], headers_mapping= args["headers_mapping"])
 
-def main():
-    from Classes.user import User
-    from Classes.book import Book
-    from Classes.library import Library
-    lb = Library().getInstance()
-
-    #args1 = {"obj_data" : {"a" : "b", "c" : [1,2,3]}}
-    #args1 = {"obj_data" : {"a" : "b", "c" : [1,2,3]}, "csv_file_path": None, "headers_mapping": {"h1" : "a", "h2" : "b", "h3" : "c"}}
-    #args2 = {"obj_data" : {"a" : "b", "c" : [1,2,3]}, "csv_file_path": "aaaaa", "headers_mapping": {"h1" : "a", "h2" : "b", "h3" : "c"}}
-    #update_csv([args2, args1])
-
-    #books_csv_path = r"C:\Users\thele\Documents\PythonProject\oop_ex_3\data_files\CSV_data\books.csv"
-    #users_csv_path =r"C:\Users\thele\Documents\PythonProject\oop_ex_3\data_files\CSV_data\users_1.csv"
-'''
-    books_dictionary = load_objs_dict_from_csv(books_csv_path, book_headers_mapping, "Book")
-    for obj_id, obj in books_dictionary.items():
-        print(f"{obj_id} : {obj}")
-    #users_dictionary = load_objs_dict_from_csv(users_csv_path, user_headers_mapping, "User")
-    #for obj_id, obj in users_dictionary.items():
-    #    print(f"{obj_id} : {obj}")
-
-    user1 = User("lost_books", "00000")
-    user2 = User.create_user("user2", "11111")
-    lb.lendBook(user2, books_dictionary[1])
-    print(f"book 1: {books_dictionary[1]}")
-    users = {0: user1}
-    connect_books_and_users(users, books_dictionary)
-    for obj_id, obj in books_dictionary.items():
-        print(f"{obj_id} : {obj}")
-    #for obj_id, obj in users_dictionary.items():
-    #    print(f"{obj_id} : {obj}")
-
-'''
-
-if __name__ == "__main__":
-    main()

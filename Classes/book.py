@@ -54,26 +54,50 @@ class Book(Subject):
 
         return new_book
 
- #-------------------- observer methods -------------------------
+#------------borrow and return--------------
+    def borrow_book(self, user: 'User') -> bool:
+        try:
+            if self.isLoaned or self.available_copies <1:
+                return False
+            self.updateCopies(-1)
+            self.borrow_count += 1
+            self.borrowed_users.append(user.id)
+        except Exception as e:
+            print(f"Error: book class, borrow book method: {e}")
+            return False
+        return True
+
+    def return_book(self, user: 'User') -> bool:
+        try:
+            self.borrowed_users.remove(user.id)
+            self.updateCopies(1)
+        except Exception as e:
+            print(f"Error: book class, return book method: {e}")
+            return False
+        return True
+
+    #-------------------- observer methods -------------------------
     def attach(self, observer: Observer):
         from Classes.library import Library
         if observer not in self.user_observers:
             self.user_observers.append(observer)
-            print(f"{observer.name} has subscribed to notifications for '{self.title}'.")
-            Library.getInstance().logger.log(f"{observer.name} has subscribed to notifications for '{self.title}'.")
+            Library.getInstance().log_notify_print(to_log=f"Applied user {observer.name} for book '{self.title}' notifications - successfully.",
+                                  to_print=f"User {observer.name} applied for '{self.title}' notifications",
+                                  to_notify=None)
 
     def detach(self, observer: Observer):
         from Classes.library import Library
         if observer in self.user_observers:
             self.user_observers.remove(observer)
-            print(f"{observer.name} has unsubscribed from notifications for '{self.title}'.")
-            Library.getInstance().logger.log(f"{observer.name} has unsubscribed from notifications for '{self.title}'.")
+            Library.getInstance().log_notify_print(to_log=f"Removed {observer.name} from notifications for '{self.title}' - successfully..",
+                                                   to_print=f"User {observer.name} unsubscribed from notifications for '{self.title}' .", to_notify=None)
 
     def notifyObservers(self, notification: str):
         from Classes.library import Library
         for observer in self.user_observers:
             observer.update(notification)
-        Library.getInstance().logger.log(f"Notification to book: '{self.title}' observers: {notification}.")
+        Library.getInstance().log_notify_print(to_log=f"Sent notification- for book '{self.title}' observers: {notification} - successfully.",
+                                               to_print=f"Sent notification- for book '{self.title}' observers: {notification}.", to_notify=None)
 
 
 
@@ -135,7 +159,7 @@ class Book(Subject):
         if previous_copies <= 0 < self.available_copies:
             # Notify observers that the book is now available
             self.isLoaned = False
-            self.notifyObservers(f"{time.time()} | Book '{self.title}' is now available for borrowing.")
+            self.notifyObservers(f"Book '{self.title}' is now available for borrowing.")
         if self.available_copies <=0 :
             self.isLoaned = True
 

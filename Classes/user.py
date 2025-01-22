@@ -17,11 +17,6 @@ LIBRARIAN_DEFAULT_PERMISSIONS = ["borrow", "return", "manage_books"]
 class User(Observer, Subject):
     user_id = 0
     users_ids = [0]
-    """
-    Represents a regular user in the library system.
-    Inherits from Observer (to get notifications) and Subject (can be observed, e.g., by other users or systems).
-    """
-
     def __init__(self, username: str, password: str, permissions: List[str] = None):
         """
         :param username: str - The username of the user.
@@ -57,12 +52,7 @@ class User(Observer, Subject):
         """
         return check_password_hash(self.__passwordHash, password)
 
-    @property
-    def passwordHash(self) -> str:
-        return self.__passwordHash
-
-    # ... (rest of your properties, methods, and class definitions)
-
+#------------property------------
     @property
     def name(self) -> str:
         return self.username
@@ -118,9 +108,6 @@ class User(Observer, Subject):
 
 
 #------------- creating\loading users ----------------
-
-        # user.py
-
     @staticmethod
     def create_user(username: str, password: str, permissions: List[str] = None):
         """
@@ -159,14 +146,6 @@ class User(Observer, Subject):
         new_user._User__passwordHash = passwordHash
         return new_user
 
-    @staticmethod
-    def merge_user(user1: 'User', user2: 'User'):
-        if user1.id == user2.id and user1.username == user2.username and user1.passwordHash == user2.passwordHash:
-            merged_user = User.loaded_user(username= user1.username, passwordHash=user1.passwordHash, prev_id=user1.id,
-                                           temp_books= user1.temp_borrowedBooks + user2.temp_borrowedBooks,
-                                           prev_borrowed= user1.previously_borrowed_books+user2.previously_borrowed_books)
-            return merged_user
-
 
     def has_permission(self, permission: str) -> bool:
         """
@@ -177,17 +156,20 @@ class User(Observer, Subject):
  #------------ books management ----------------
 
     @permission_required("borrow")
-    def borrowBook(self, book: Book):
+    def borrowBook(self, book: Book) -> bool:
         """
         Borrow the specified book if copies are available.
         Book attaches user as an observer to notify about availability changes.
         """
-        if book.available_copies > 0:
-            self._borrowedBooks.append(book)
-            print(f"{self.username} borrowed '{book.title}'.")
-        else:
-            print(f"No copies available for '{book.title}'. {self.username} can subscribe for notifications.")
-            book.attach(self)
+        try:
+            if book.available_copies > 0:
+                self._borrowedBooks.append(book)
+                return True
+            else:
+                return False
+        except Exception as e:
+            print(f"Error: in user class, borrow book method : {e}")
+            return False
 
     @permission_required("return")
     def returnBook(self, book: Book):
@@ -196,18 +178,15 @@ class User(Observer, Subject):
         Detaches user from the book's observer list.
         """
         if book in self._borrowedBooks:
-            book.updateCopies(1)
-            self._borrowedBooks.remove(book)
-            book.detach(self)
-            self.__previously_borrowed_books.append(book.id)
-            from Classes.library import Library
-            library = Library.getInstance()
-            library.notifyObservers(f"{self.username} returned '{book.title}'.")
-            print(f"{self.username} returned '{book.title}'.")
+            try:
+                self._borrowedBooks.remove(book)
+                self.__previously_borrowed_books.append(book.id)
+            except Exception as e:
+                print(f"Error: in user class, return book method : {e}")
+                return False
             return True
         else:
-            print(f"{self.username} does not have '{book.title}' borrowed.")
-            return False
+            raise BookNotFoundException(f"{self.username} does not have '{book.title}' borrowed.")
 
 #------------ observer method ----------------
     def update(self, notification: str):
