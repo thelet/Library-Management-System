@@ -84,9 +84,9 @@ class LibraryGUI:
             tk.Button(top_frame, text="Log In", command=self.handleLogin).pack(
                 side=tk.LEFT, padx=5
             )
-            tk.Button(top_frame, text="Sign Up", command=self.handleRegister).pack(
-                side=tk.LEFT, padx=5
-            )
+            # tk.Button(top_frame, text="Sign Up", command=self.handleRegister).pack(
+            #     side=tk.LEFT, padx=5
+            # )
 
         if not is_guest:
             tk.Button(top_frame, text="Logout", command=self.handleLogout).pack(
@@ -295,26 +295,36 @@ class LibraryGUI:
         """Combine textual search with the currently chosen filter."""
         criteria = str(self.search_entry.get().strip())
         search_result = ""
-        if criteria and criteria !='':
+        if criteria and criteria != "":
             t_res = self.library.searchBooks(criteria, SearchByTitle())
             a_res = self.library.searchBooks(criteria, SearchByAuthor())
             c_res = self.library.searchBooks(criteria, SearchByCategory())
             initial_set = set(t_res + a_res + c_res)
-            search_result = (f"Search by criteria '{criteria}' found ({len(t_res)}) books by title, ({len(a_res)}) books by author, "
-                             f"({len(c_res)}) books by category. reformed - {'successfully' if len(initial_set) > 0 else 'failed'}")
+            search_result = (
+                f"Search by criteria '{criteria}' found ({len(t_res)}) books by title, ({len(a_res)}) books by author, "
+                f"({len(c_res)}) books by category. reformed - {'successfully' if len(initial_set) > 0 else 'failed'}"
+            )
         else:
             initial_set = set(self.library.books.values())
 
         filtered, used_filter = self.apply_filter_to_books(initial_set)
-        merged = (f"\nBooks display by '{criteria}', combined with filter '{used_filter}' "
-                  f" - {'successfully' if len(filtered) > 0 else 'failed'}. Found ({len(filtered)}) matching books.")
+        merged = (
+            f"\nBooks display by '{criteria}', combined with filter '{used_filter}' "
+            f" - {'successfully' if len(filtered) > 0 else 'failed'}. Found ({len(filtered)}) matching books."
+        )
         if used_filter not in ["Title", "Author", "Category"]:
-            self.library.log_notify_print(to_log=search_result, to_print=search_result, to_notify=None)
-        if criteria and criteria !='':
-            self.library.log_notify_print(to_log=merged, to_print=merged, to_notify=None)
+            self.library.log_notify_print(
+                to_log=search_result, to_print=search_result, to_notify=None
+            )
+        if criteria and criteria != "":
+            self.library.log_notify_print(
+                to_log=merged, to_print=merged, to_notify=None
+            )
         else:
             msg_filter = f"Filtered books by '{used_filter}' - {'successfully' if len(filtered) > 0 else 'failed'}. Found ({len(filtered)}) matching books."
-            self.library.log_notify_print(to_log=msg_filter, to_print=msg_filter, to_notify=None)
+            self.library.log_notify_print(
+                to_log=msg_filter, to_print=msg_filter, to_notify=None
+            )
         self.update_book_list(filtered)
 
     def perform_filter(self):
@@ -323,7 +333,9 @@ class LibraryGUI:
         filtered, used_filter = self.apply_filter_to_books(initial_set)
         self.update_book_list(filtered)
         msg_filter = f"Filtered books by '{used_filter}' - {'successfully' if len(filtered) > 0 else 'failed'}. Found ({len(filtered)}) matching books."
-        self.library.log_notify_print(to_log=msg_filter, to_print=msg_filter, to_notify=None)
+        self.library.log_notify_print(
+            to_log=msg_filter, to_print=msg_filter, to_notify=None
+        )
 
     def apply_filter_to_books(self, books_set):
         """
@@ -356,7 +368,11 @@ class LibraryGUI:
 
         def filter_my_books(books):
             if self.current_user:
-                return {book for book in books if book in getattr(self.current_user, "borrowedBooks", [])}
+                return {
+                    book
+                    for book in books
+                    if book in getattr(self.current_user, "borrowedBooks", [])
+                }
             return set()
 
         def filter_available(books):
@@ -366,20 +382,27 @@ class LibraryGUI:
             return {book for book in books if book.available_copies == 0}
 
         def filter_previously_borrowed(books):
-            if self.current_user and hasattr(self.current_user, "previously_borrowed_books"):
-                prev_ids = set(self.current_user.previously_borrowed_books)  # Convert to set for O(1) lookups
+            if self.current_user and hasattr(
+                self.current_user, "previously_borrowed_books"
+            ):
+                prev_ids = set(
+                    self.current_user.previously_borrowed_books
+                )  # Convert to set for O(1) lookups
                 return {book for book in books if book.id in prev_ids}
             return set()
 
         def filter_notifications(books):
             if self.current_user:
-                return {book for book in books if self.current_user in book.user_observers}
+                return {
+                    book for book in books if self.current_user in book.user_observers
+                }
             return set()
 
         def filter_title(books):
             criteria = str(self.search_entry.get().strip())
             t_res = self.library.searchBooks(criteria, SearchByTitle())
             return set(t_res)
+
         def filter_author(books):
             criteria = str(self.search_entry.get().strip())
             a_res = self.library.searchBooks(criteria, SearchByAuthor())
@@ -415,7 +438,7 @@ class LibraryGUI:
         valid_books = set()
         invalid_entries = []
         for book in books_collection:
-            if hasattr(book, 'title'):
+            if hasattr(book, "title"):
                 valid_books.add(book)
             else:
                 invalid_entries.append(book)
@@ -423,7 +446,9 @@ class LibraryGUI:
         if invalid_entries:
             # Log the invalid entries
             for invalid in invalid_entries:
-                print(f"Warning : Invalid entry detected in books_collection: {invalid}")
+                print(
+                    f"Warning : Invalid entry detected in books_collection: {invalid}"
+                )
         if not valid_books:
             # If no valid books, display a message
             self.details_label.config(text="No books to display.")
@@ -432,7 +457,9 @@ class LibraryGUI:
             sorted_books = sorted(valid_books, key=lambda bk: str(bk.title).lower())
             for i, book in enumerate(sorted_books):
                 self.book_listbox.insert(tk.END, book.title)
-                if self.current_user and book in getattr(self.current_user, "borrowedBooks", []):
+                if self.current_user and book in getattr(
+                    self.current_user, "borrowedBooks", []
+                ):
                     self.book_listbox.itemconfig(i, bg="green")
         except Exception as e:
             print(f"Error sorting books: {e}")
@@ -577,7 +604,10 @@ class LibraryGUI:
                 book = Book.createBook(title, author, year, genre, copies)
                 self.library.addBook(book, self.current_user)
                 if description_ent.get().strip() and image_path.get().strip():
-                    both_decorated = CoverDecorator(DescriptionDecorator(book, description_ent.get()), image_path.get())
+                    both_decorated = CoverDecorator(
+                        DescriptionDecorator(book, description_ent.get()),
+                        image_path.get(),
+                    )
                     self.library.add_decorated_book(both_decorated)
                 elif description_ent.get().strip():
                     description_decorated = DescriptionDecorator(
@@ -586,6 +616,16 @@ class LibraryGUI:
                     self.library.add_decorated_book(description_decorated)
                 # Add cover decorator if image_path is set
                 elif image_path.get():
+                    if (
+                        not image_path.get()
+                        .lower()
+                        .endswith((".png", ".jpg", ".jpeg", ".gif", ".bmp"))
+                    ):
+                        messagebox.showerror(
+                            "Error",
+                            "Invalid image file format. Please select a valid image file.",
+                        )
+                        return
                     cover_decorated = CoverDecorator(book, image_path.get())
                     self.library.add_decorated_book(cover_decorated)
 
@@ -699,7 +739,9 @@ class LibraryGUI:
             try:
                 success = self.library.returnBook(self.current_user, book)
                 if success:
-                    self.logger.log(f"{self.current_user.username} returned '{btitle}'.")
+                    self.logger.log(
+                        f"{self.current_user.username} returned '{btitle}'."
+                    )
                     messagebox.showinfo("Success", f"You returned '{btitle}'.")
                     self.perform_search()
             except BookNotFoundException:
@@ -771,5 +813,3 @@ class LibraryGUI:
         else:
             messagebox.showinfo("Logout", "Guest session ended.")
         self.root.destroy()
-
-
