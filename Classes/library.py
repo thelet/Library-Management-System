@@ -32,7 +32,7 @@ dec_book_args_for_csv_update_wrapper = {
     "csv_file_path_attr": "book_decorators_file_path",
     "headers_mapping_attr": "book_deco_headers_mapping"
 }
-PRINT_LOG = False
+PRINT_LOG = True
 REGULAR_PRINTS = True
 
 class Library(Subject, Observer):
