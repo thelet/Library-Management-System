@@ -18,6 +18,7 @@ class BookDecorator(ABC):
     def __init__(self, wrapped_book: Book):
         self._wrapped_book = wrapped_book
         self.id = int(self._wrapped_book.id)
+        self.title = self._wrapped_book.title
 
     @abstractmethod
     def getDetails(self) -> Dict[str, Any]:

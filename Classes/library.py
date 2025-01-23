@@ -112,7 +112,7 @@ class Library(Subject, Observer):
             user_id = user.id
             self.users[user_id] = user
             self.log_notify_print(
-                to_log=f"\nRegistered - new {user.role} with Username :{user.username} and id: {user.id} - successfully.",
+                to_log=f"Registered - new {user.role} with Username :{user.username} and id: {user.id} - successfully.",
                 to_notify=[self, f"New {user_params['role']} with username: {user.username} joined the library."],
                 to_print = f"Completed sign up for {user_params['role']} with username: {user.username} and id: {user.id}.")
 

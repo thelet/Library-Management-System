@@ -313,18 +313,17 @@ class LibraryGUI:
         if criteria and criteria !='':
             self.library.log_notify_print(to_log=merged, to_print=merged, to_notify=None)
         else:
-            msg_filter = f"Filtered books by '{used_filter}' - {'successfully' if len(filtered) > 0 else 'failed'}. Found ({len(filtered)} books"
+            msg_filter = f"Filtered books by '{used_filter}' - {'successfully' if len(filtered) > 0 else 'failed'}. Found ({len(filtered)}) matching books."
             self.library.log_notify_print(to_log=msg_filter, to_print=msg_filter, to_notify=None)
         self.update_book_list(filtered)
 
     def perform_filter(self):
         """Apply only the chosen filter, ignoring textual search."""
         initial_set = set(self.library.books.values())
-        filtered = self.apply_filter_to_books(initial_set)
-        chosen_filter = self.filter_combobox.get()
-        msg = f"Books filter by '{chosen_filter}' displayed {'successfully' if len(filtered) > 0 else 'failed'}. Found ({len(filtered)}) matching books."
-        self.library.log_notify_print(to_log=msg, to_print=msg, to_notify=None)
+        filtered, used_filter = self.apply_filter_to_books(initial_set)
         self.update_book_list(filtered)
+        msg_filter = f"Filtered books by '{used_filter}' - {'successfully' if len(filtered) > 0 else 'failed'}. Found ({len(filtered)}) matching books."
+        self.library.log_notify_print(to_log=msg_filter, to_print=msg_filter, to_notify=None)
 
     def apply_filter_to_books(self, books_set):
         """
@@ -380,11 +379,11 @@ class LibraryGUI:
         def filter_title(books):
             criteria = str(self.search_entry.get().strip())
             t_res = self.library.searchBooks(criteria, SearchByTitle())
-            return t_res
+            return set(t_res)
         def filter_author(books):
             criteria = str(self.search_entry.get().strip())
             a_res = self.library.searchBooks(criteria, SearchByAuthor())
-            return a_res
+            return set(a_res)
 
         # Mapping of filter names to their corresponding functions
         filter_functions = {
@@ -404,7 +403,7 @@ class LibraryGUI:
         filter_func = filter_functions.get(chosen_filter, filter_all)
 
         # Apply the filter function and return the result
-        filtered_books = filter_func(books_set)
+        filtered_books = set(filter_func(books_set))
         return filtered_books, chosen_filter
 
     def update_book_list(self, books_collection):
@@ -429,12 +428,14 @@ class LibraryGUI:
             # If no valid books, display a message
             self.details_label.config(text="No books to display.")
             return
-
-        sorted_books = sorted(valid_books, key=lambda bk: bk.title.lower())
-        for i, book in enumerate(sorted_books):
-            self.book_listbox.insert(tk.END, book.title)
-            if self.current_user and book in getattr(self.current_user, "borrowedBooks", []):
-                self.book_listbox.itemconfig(i, bg="green")
+        try:
+            sorted_books = sorted(valid_books, key=lambda bk: str(bk.title).lower())
+            for i, book in enumerate(sorted_books):
+                self.book_listbox.insert(tk.END, book.title)
+                if self.current_user and book in getattr(self.current_user, "borrowedBooks", []):
+                    self.book_listbox.itemconfig(i, bg="green")
+        except Exception as e:
+            print(f"Error sorting books: {e}")
 
     # ----------------- Book Selection ----------------- #
     def on_book_select(self, event):
