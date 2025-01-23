@@ -1,6 +1,5 @@
 # book.py
 import ast
-import time
 from typing import List, Any, TYPE_CHECKING
 from design_patterns.observer import Subject, Observer
 if TYPE_CHECKING:
@@ -55,11 +54,11 @@ class Book(Subject):
         return new_book
 
 #------------borrow and return--------------
-    def borrow_book(self, user: 'User') -> bool:
+    def borrow_book(self, user: 'User', print_update_for_copy = True) -> bool:
         try:
             if self.isLoaned or self.available_copies <1:
                 return False
-            self.updateCopies(-1)
+            self.updateCopies(-1, to_print=print_update_for_copy)
             self.borrow_count += 1
             self.borrowed_users.append(user.id)
         except Exception as e:
@@ -67,10 +66,10 @@ class Book(Subject):
             return False
         return True
 
-    def return_book(self, user: 'User') -> bool:
+    def return_book(self, user: 'User', print_update_for_copy = True) -> bool:
         try:
             self.borrowed_users.remove(user.id)
-            self.updateCopies(1)
+            self.updateCopies(1, to_print=print_update_for_copy)
         except Exception as e:
             print(f"Error: book class, return book method: {e}")
             return False
@@ -81,23 +80,23 @@ class Book(Subject):
         from Classes.library import Library
         if observer not in self.user_observers:
             self.user_observers.append(observer)
-            Library.getInstance().log_notify_print(to_log=f"Applied user {observer.name} for book '{self.title}' notifications - successfully.",
-                                  to_print=f"User {observer.name} applied for '{self.title}' notifications",
+            Library.getInstance().log_notify_print(to_log=f"User '{observer.name}' applied for book '{self.title}' notifications - successfully.",
+                                  to_print=f"User '{observer.name}' applied for '{self.title}' notifications",
                                   to_notify=None)
 
     def detach(self, observer: Observer):
         from Classes.library import Library
         if observer in self.user_observers:
             self.user_observers.remove(observer)
-            Library.getInstance().log_notify_print(to_log=f"Removed {observer.name} from notifications for '{self.title}' - successfully..",
-                                                   to_print=f"User {observer.name} unsubscribed from notifications for '{self.title}' .", to_notify=None)
+            Library.getInstance().log_notify_print(to_log=f"Removed '{observer.name}' from notifications for '{self.title}' - successfully..",
+                                                   to_print=f"User '{observer.name}' unsubscribed from notifications for '{self.title}' .", to_notify=None)
 
     def notifyObservers(self, notification: str):
         from Classes.library import Library
         for observer in self.user_observers:
             observer.update(notification)
-        Library.getInstance().log_notify_print(to_log=f"Sent notification- for book '{self.title}' observers: {notification} - successfully.",
-                                               to_print=f"Sent notification- for book '{self.title}' observers: {notification}.", to_notify=None)
+        Library.getInstance().log_notify_print(to_log=f"Sent notification- from book '{self.title}' | msg : {notification} | - successfully.",
+                                               to_print=f"Sent notification from book '{self.title}' | msg : {notification}.", to_notify=None)
 
 
 
@@ -152,14 +151,20 @@ class Book(Subject):
     def set_borrow_count(self, count: int):
         self.borrow_count = count
 
-    def updateCopies(self, count: int):
+    def updateCopies(self, count: int, to_print = True):
+        from Classes.library import Library
         previous_copies = self.available_copies
         self.available_copies += count
-        print(f"Updated copies for '{self.title}': {previous_copies} -> {self.available_copies}")
+        if to_print:
+            Library.getInstance().log_notify_print(to_log=f"Updated copies for '{self.title}': {previous_copies} -> {self.available_copies}",
+                                                   to_print=f"Updated copies for '{self.title}': {previous_copies} -> {self.available_copies}", to_notify=None)
         if previous_copies <= 0 < self.available_copies:
             # Notify observers that the book is now available
             self.isLoaned = False
-            self.notifyObservers(f"Book '{self.title}' is now available for borrowing.")
+            if to_print:
+                Library.getInstance().log_notify_print(to_log=f"Book '{self.title}' is now available for borrowing.",
+                                                   to_print=f"Book '{self.title}' is now available for borrowing.",
+                                                   to_notify=[self, f"Book '{self.title}' from your waiting list is now available for borrowing."])
         if self.available_copies <=0 :
             self.isLoaned = True
 

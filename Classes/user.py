@@ -190,26 +190,35 @@ class User(Observer, Subject):
 
 #------------ observer method ----------------
     def update(self, notification: str):
+        from Classes.library import Library
         """
         Called when the user is notified by a subject they observe (e.g., a Book).
         """
         self.notifications.append(notification)
-        print(f"Notification for {self.username}: {notification}")
+        Library.getInstance().log_notify_print(to_log=f"User '{self.username}' received notification : {notification} - successfully.",
+                                               to_print=f"User {self.username} received notification : {notification}", to_notify=None)
 
     # Subject Interface Methods
     def attach(self, observer: Observer):
+        from Classes.library import Library
         if observer not in self._observers:
             self._observers.append(observer)
-            print(f"{observer.name} is now observing user '{self.username}'.")
+            Library.getInstance().log_notify_print(to_log=f"{observer.name} added to user '{self.username}' notifications - successfully.",
+                                                   to_print=f"{observer.name} added to user '{self.username}' notifications.", to_notify=None)
 
     def detach(self, observer: Observer):
         if observer in self._observers:
+            from Classes.library import Library
             self._observers.remove(observer)
-            print(f"{observer.name} has stopped observing user '{self.username}'.")
+            Library.getInstance().log_notify_print(to_log=f"{observer.name} removed from user '{self.username}' notifications - successfully.",
+                                                   to_print=f"{observer.name} removed from user '{self.username}' notifications.", to_notify=None)
 
     def notifyObservers(self, notification: str):
+        from Classes.library import Library
         for obs in self._observers:
             obs.update(notification)
+        Library.getInstance().log_notify_print(to_log=f"Sent notification- for user '{self.username}'. msg : {notification} - successfully.",
+                                               to_print=f"Sent notification- for user '{self.username}'. msg : {notification}", to_notify=None)
 
 
 #------------------- json methods ----------------------
@@ -288,7 +297,8 @@ class Librarian(User):
         while User.user_id in User.users_ids:
             User.user_id += 1
         User.users_ids.append(User.user_id)
-        return Librarian(username= username,passwordHash= passwordHash,permissions= permissions or LIBRARIAN_DEFAULT_PERMISSIONS)
+        return Librarian(username= username,passwordHash= passwordHash,
+                         permissions= permissions or LIBRARIAN_DEFAULT_PERMISSIONS)
 
 
     #------------- json methods --------------------

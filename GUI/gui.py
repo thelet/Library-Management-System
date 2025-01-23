@@ -307,6 +307,8 @@ class LibraryGUI:
         """Apply only the chosen filter, ignoring textual search."""
         initial_set = set(self.library.books.values())
         filtered = self.apply_filter_to_books(initial_set)
+        msg = f"Books filter by '{""}' displayed {'successfully' if len(filtered) > 0 else 'fails'}. found ({len(filtered)}) matching books.  "
+        self.library.log_notify_print(to_log=msg, to_print=msg, to_notify=None)
         self.update_book_list(filtered)
 
     def apply_filter_to_books(self, books_set):

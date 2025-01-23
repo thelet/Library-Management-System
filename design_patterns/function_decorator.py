@@ -11,7 +11,7 @@ from manage_files.csv_manager import update_csv
 
 def permission_required(permission: str):
     """
-    A decorator to check if the caller (user) has the required permission before executing the function.
+    A decorator to check if the caller has the required permission before executing the function.
 
     :param permission: The required permission as a string.
     """

@@ -8,19 +8,20 @@ class Logger:
         # Ensure the log file exists
         if not os.path.exists(self.log_file):
             with open(self.log_file, "w") as file:
-                file.write("Log File Created\n")  # Initial log entry
+                file.write("Log File Created\n")
+        # Initial log entry
 
-    def log(self, message: str):
+    def log(self, message: str, print_to_console: bool = True):
         # Format the log message
-        formatted_message = f"[LOG]: {message}\n"
+        formatted_message = f"[LOG]: {message}"
 
         # Write the log message to the file
         try:
             with open(self.log_file, "a") as file:
-                file.write(formatted_message)
+                file.write(formatted_message + "\n")
         except Exception as e:
             print(f"Failed to write to log file: {e}")
 
-        # Optionally, also print the message to the console
-        print(formatted_message)
+        if print_to_console:
+            print(formatted_message)
 

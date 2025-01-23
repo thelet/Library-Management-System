@@ -1,5 +1,7 @@
 # library.py
 import os
+from os import write
+
 from design_patterns.function_decorator import permission_required, upsert_after, update_csv_after
 from design_patterns.observer import Subject, Observer
 from design_patterns.strategy import SearchStrategy
@@ -30,6 +32,8 @@ dec_book_args_for_csv_update_wrapper = {
     "csv_file_path_attr": "book_decorators_file_path",
     "headers_mapping_attr": "book_deco_headers_mapping"
 }
+PRINT_LOG = False
+REGULAR_PRINTS = True
 
 class Library(Subject, Observer):
     """
@@ -60,6 +64,8 @@ class Library(Subject, Observer):
         self.user_headers_mapping = csv_manager.user_headers_mapping
         self.book_deco_headers_mapping = csv_manager.book_deco_headers_mapping
 
+        with open(self.logger.log_file, "w") as log_file:
+            log_file.write("")
         Library.__instance = self
 
     @staticmethod
@@ -110,14 +116,7 @@ class Library(Subject, Observer):
                 to_notify=[self, f"New {user_params['role']} with username: {user.username} joined the library."],
                 to_print = f"Completed sign up for {user_params['role']} with username: {user.username} and id: {user.id}.")
 
-            try:
-                csv_manager.update_csv([user.to_json(), self.users_csv_file_path, csv_manager.user_headers_mapping])
-                self.log_notify_print(
-                    to_log=f"Added user to csv file - Username: {user.username} User ID: {user.id} Path: '{self.users_csv_file_path}' - successfully",
-                    to_print=f"Added user {user.username} with id: {user.id} to csv file.",to_notify=None)
-            except ValueError as e:
-                self.log_notify_print(to_log=f"Error: writing user {user.username} with id: {user.id} to csv file '{self.users_csv_file_path}'- failed",
-                                      to_print=f"Error when writing to file: {e}",to_notify=None)
+            self.write_new_user_to_csv(user)
             return user
 
         else:
@@ -126,7 +125,9 @@ class Library(Subject, Observer):
                 to_print=f"Error: Failed to register user", to_notify=None)
             raise SignUpError("Something went wrong during sign up. Please try again.")
 
-
+    @update_csv_after([user_args_for_csv_update_wrapper])
+    def write_new_user_to_csv(self, user: 'User'):
+        pass
 
     # ------------- Book Management -------------
 
@@ -144,7 +145,7 @@ class Library(Subject, Observer):
 
         self.books[book.id] = book
         self.log_notify_print(to_log= f"\nAdded book - '{book.title}' with id: {book.id} to the library - successfully.",
-                              to_notify=[self, f"New book added: '{book.title}' by {book.author}."],
+                              to_notify=[self, f"New book '{book.title}' by '{book.author}' added to library collection."],
                               to_print=f"New book '{book.title}' with id:{book.id} added to the library.")
 
 
@@ -165,8 +166,8 @@ class Library(Subject, Observer):
             removed = csv_manager.remove_book_from_csv(book.id, self.books_csv_file_path)
             if removed:
                 self.log_notify_print(to_log=f"Removed book - '{book.title}' from the library - successfully.",
-                                      to_notify=[self,f"Removed book: '{book.title}' by {book.author}' from library collection."],
-                                      to_print=f"Removed book '{book.title}' with id: {book.id} from the library.")
+                                      to_notify=[self,f"Removed book '{book.title}' by '{book.author}' from library collection."],
+                                      to_print=f"Removed book '{book.title}' with id: '{book.id}' from the library.")
             else:
                 self.log_notify_print(to_log=f"Remove book - for '{book.title}' - failed",to_print=f"Error: Failed to remove book '{book.title}'",to_notify=None)
         else:
@@ -206,20 +207,19 @@ class Library(Subject, Observer):
     # ------------- Lending / Returning -------------
     @permission_required("borrow")
     @update_csv_after([user_args_for_csv_update_wrapper, book_args_for_csv_update_wrapper])
-    def lendBook(self, user: 'User', book: Book) -> bool:
+    def lendBook(self, user: 'User', book: Book, print_book = True) -> bool:
         """
         Let user borrow if copies > 0.
         """
         if book.available_copies > 0:
             user_borrowed = user.borrowBook(book)
-            book_borrowed = book.borrow_book(user)
-            if not user_borrowed or not book_borrowed:
+            book_borrowed = book.borrow_book(user, print_update_for_copy= print_book)
+            if not (user_borrowed or not book_borrowed) and print_book:
                 self.log_notify_print(to_log=f"Book borrowing - for '{book.title}' - failed",
                                       to_print= f"Error: when user {user.id} tried to borrow '{book.title}'", to_notify=None)
-            else:
+            elif print_book:
                 self.log_notify_print(to_log=f"Book borrowed - '{book.title}' by user '{user.id}' - successfully",
-                                      to_notify=[self, f"{user.username} borrowed '{book.title}'."],
-                                      to_print= f"User {user.username} with id: {user.id} borrowed '{book.title}'.",)
+                                      to_print= f"User {user.username} with id: {user.id} borrowed '{book.title}'.",to_notify=None)
             return True
         else:
             self.log_notify_print(to_log=f"Book borrowing - for '{book.title}'  - failed, book had no available copies",
@@ -230,20 +230,19 @@ class Library(Subject, Observer):
 
     @permission_required("return")
     @update_csv_after([user_args_for_csv_update_wrapper, book_args_for_csv_update_wrapper])
-    def returnBook(self, user: 'User', book: Book) -> bool:
+    def returnBook(self, user: 'User', book: Book, to_print = True) -> bool:
         """
         Let user return if they do indeed have it.
         """
         try:
             user_returned = user.returnBook(book)
-            book_returned = book.return_book(user)
+            book_returned = book.return_book(user, print_update_for_copy=to_print)
             if not user_returned or not book_returned:
                 self.log_notify_print(to_log=f"Book return - for '{book.title}' and user {user.username} - failed.",
                                       to_print=f"failed to return book '{book.title}' from user {user.username}.", to_notify=None)
             else:
                 self.log_notify_print(to_log=f"Returned Book - '{book.title}' by user '{user.username}' - successfully",
-                                      to_print=f"User {user.username} returned '{book.title}'.",
-                                      to_notify=[self, f"User {user.username} returned '{book.title}'."])
+                                      to_print=f"User {user.username} returned '{book.title}'.", to_notify=None)
         except BookNotFoundException:
             self.log_notify_print(
                 to_log=f"Return Book - '{book.title}' by user '{user.username}' - failed, user doesn't have this book.",
@@ -269,17 +268,17 @@ class Library(Subject, Observer):
     def notifyObservers(self, notification: str):
         for obs in self.librarian_observers:
             obs.update(notification)
-            self.log_notify_print(to_log=f"Library notified observers: {notification}",
+        self.log_notify_print(to_log=f"Sent notification - from library to librarian users | msg : {notification} - successfully",
                                   to_print=f"Library notified observers: {notification}", to_notify=None)
 
 
     # ------------- Observer Implementation -------------
     def update(self, notification: str):
         """
-        Library can respond to notifications from other subjects if needed.
+        Library can receive notifications from other subjects if needed.
         """
-        print(f"Library received notification: {notification}")
-        self.logger.log(f"Library received notification: {notification}")
+        self.log_notify_print(to_log=f"Library received notification: {notification}",
+                              to_print=f"Library received notification: {notification}", to_notify=None)
 
     # ------------- CSV / JSON Persistence -------------
 
@@ -293,8 +292,8 @@ class Library(Subject, Observer):
                 self.attach(u)
 
         if len(self.users.values()) > 1:
-            self.log_notify_print(to_log=f"Loaded users - from csv file: {csv_file_path} - successfully",
-                                  to_print=f"Loaded users from csv file: {csv_file_path}", to_notify=None)
+            self.log_notify_print(to_log=f"Loaded ({len(self.users.values())-1}) users - from csv file: {csv_file_path} - successfully",
+                                  to_print=f"Loaded ({len(self.users.values())-1}) users from csv file: {csv_file_path}", to_notify=None)
         else:
             self.log_notify_print(to_log=f"Warning : no users found in csv file: {csv_file_path}",
                                   to_print=f"No users found in csv file: {csv_file_path}", to_notify=None)
@@ -305,8 +304,8 @@ class Library(Subject, Observer):
         self.books = csv_manager.load_objs_dict_from_csv(csv_file_path, csv_manager.book_headers_mapping, "Book")
         self.books_csv_file_path = csv_file_path
         if len(self.books.values()) > 0:
-            self.log_notify_print(to_log=f"Loaded books - from csv file: {csv_file_path} - successfully",
-                                  to_print=f"Loaded books from csv file: {csv_file_path}", to_notify=None)
+            self.log_notify_print(to_log=f"Loaded ({len(self.books.values())}) books - from csv file: {csv_file_path} - successfully",
+                                  to_print=f"Loaded ({len(self.books.values())}) books from csv file: {csv_file_path}", to_notify=None)
         else:
             self.log_notify_print(to_log=f"Warning : no books found in csv file: {csv_file_path}",
                                   to_print=f"No books found in csv file: {csv_file_path}", to_notify=None)
@@ -333,8 +332,8 @@ class Library(Subject, Observer):
                                                                        self.book_deco_headers_mapping, "book_decorator")
             self.book_decorators_file_path = csv_file_path
             if len(self.decorated_books.values()) > 0:
-                self.log_notify_print(to_log=f"Loaded books decorator - from csv file: {csv_file_path} - successfully",
-                                      to_print=f"Loaded books decorator from csv file: {csv_file_path}",to_notify=None)
+                self.log_notify_print(to_log=f"Loaded ({len(self.decorated_books.values())}) books decorator - from csv file: {csv_file_path} - successfully",
+                                      to_print=f"Loaded ({len(self.decorated_books.values())}) books decorator from csv file: {csv_file_path}",to_notify=None)
             else:
                 self.log_notify_print(to_log=f"Warning : no books decorator found in csv file: {csv_file_path}",
                                       to_print=f"No books decorator found in csv file: {csv_file_path}", to_notify=None)
@@ -366,14 +365,15 @@ class Library(Subject, Observer):
         csv_manager.connect_books_and_users(self.users, self.books)
 
 
-#----------------methods----------------------
+#----------------other methods----------------------
     def log_notify_print(self, to_log : str or None, to_notify: tuple[Subject, str] or None, to_print: str or None):
         if to_log:
-            self.logger.log(to_log)
+            self.logger.log(to_log, PRINT_LOG)
         if to_notify:
             to_notify[0].notifyObservers(to_notify[1])
-        if to_print:
+        if to_print and REGULAR_PRINTS:
             print(to_print)
+            if to_log: print()
 
     def to_json(self) -> dict:
         return {

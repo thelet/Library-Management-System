@@ -147,12 +147,10 @@ def modify_csv(file_path: str):
         for i, row in enumerate(reader, start=1):
             # If 'id' is missing or empty in the original, set it
             if "id" not in row or not row["id"].strip():
-                print(f"adding id to row {i}")
                 row["id"] = i
 
             # If 'followers_ids' is missing or empty, set it to "[]"
             if "followers_ids" not in row or not row["followers_ids"].strip():
-                print(f"adding followers_ids to row {i}")
                 row["followers_ids"] = []
 
             if not row.get("borrowed_users", "").strip():
@@ -188,7 +186,6 @@ def connect_books_and_users(users: dict[int ,'User'], books: dict[int ,'Book']):
     reconnect_borrowed_books(users, books)
     reattached_observers(books, users)
     connect_lost_books(books, users)
-    print("finished connecting books and users")
 
 
 
@@ -209,7 +206,7 @@ def reconnect_borrowed_books(users_dict : dict[int, 'User'], books_dict: dict[in
         user.borrowedBooks = books_list
         user.temp_borrowedBooks = not_found
     if not_found and len(not_found) > 0:
-        print(f"users not found when trying to connect books: {not_found}")
+        print(f"Warning: users not found when trying to connect books: {not_found}")
 
 def reattached_observers(books_dict : dict[int ,'Book'], users_dict : dict[int, 'User']):
     from Classes.library import Library
@@ -228,16 +225,31 @@ def reattached_observers(books_dict : dict[int ,'Book'], users_dict : dict[int, 
 
 def connect_lost_books(books_dict : dict[int, 'Book'], users_dict : dict[int, 'User']):
     from Classes.library import Library
+    lost_book_count = 0
+    lost_books_titles = set()
+    users_not_found = set()
     for book in books_dict.values():
         lib = Library.getInstance()
         # for the template csv, that didn't contain the id's for the users who borrowed the book.
         # we attach the books to a dedicated library user in order to be able to test on them.
+
         for use_id in book.borrowed_users:
             if use_id == 0 or use_id not in users_dict.keys():
-                print(f"user: {use_id} not found, attaching lost book '{book.title}'")
-                book.updateCopies(1)
+                book.updateCopies(1, to_print= False)
                 book.borrowed_users.remove(use_id)
-                lib.lendBook(lib.lost_books_user, book)
+                lib.lendBook(lib.lost_books_user, book, print_book=False)
+                lost_book_count += 1
+                users_not_found.add(use_id)
+                lost_books_titles.add(book.title)
+    msg = f"Found ({lost_book_count}) lost books and ({len(users_not_found)}) users not found."
+    Library.getInstance().log_notify_print(to_log=msg, to_print=msg, to_notify=None)
+    if lost_book_count > 0 or len(users_not_found) > 0:
+        counter_msg =(f"Lost books titles : {lost_books_titles}"
+                    f"\nMissing users ids: {users_not_found}\n"
+                    f"\nAttached lost books to library user - successfully")
+        Library.getInstance().log_notify_print(to_log=counter_msg, to_print=counter_msg, to_notify=None)
+
+
 
 def create_empty_files(csv_file_path, headers_list, file_name_adder :str):
     # Split the original file into base (without extension) and the extension

@@ -46,12 +46,9 @@ class LoginGUI:
         password = self.password_entry.get().strip()
         if not username or not password:
             messagebox.showerror("Error", "Username and password cannot be empty.")
+            self.library.log_notify_print(to_log="Registration failed - username or password empty",
+                                          to_print="Registration failed - username or password empty", to_notify=None)
             return
-        """
-        if any(u.username == username for u in self.library.users.values()):
-            messagebox.showerror("Error", "User username already exists.")
-            return
-        """
         try:
             user = self.library.signUp(
                 {"username": username, "password": password, "role": role}
@@ -74,10 +71,11 @@ class LoginGUI:
         )
 
         if user and user.verify_password(password):
-            print(f"{username} login successful")
             self.open_main_screen(user)
         else:
             messagebox.showerror("Error", f"Invalid {role} credentials.")
+            self.library.log_notify_print(to_log=f"Login failed - invalid {role} credentials",
+                                          to_print=f"Login failed - invalid {role} credentials", to_notify=None)
 
     def guest_mode(self):
         # Guest has no user instance

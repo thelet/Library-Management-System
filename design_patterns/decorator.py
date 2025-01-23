@@ -84,33 +84,3 @@ class CoverDecorator(BookDecorator):
         base_json["type"] += f"###cover_image"
         base_json["id"] = self.id
         return base_json
-
-
-def main():
-    # Create a book instance
-    book1 = Book.createBook("aaa", "bbbb", 3333, "both", 4)
-
-    # Decorate the book with a cover image
-    img_d = CoverDecorator(book1, "cover.jpg")
-    print("Cover Decorated Book Details:")
-    print(img_d.getDetails())
-    print("Cover Decorated Book JSON:")
-    print(img_d.to_json())
-
-    # Access 'id' from the instance
-
-    # Decorate the already cover-decorated book with a description
-    both_d = DescriptionDecorator(img_d, "An amazing journey through...")
-    print("\nFully Decorated Book Details:")
-    print(both_d.getDetails())
-    print("Fully Decorated Book JSON:")
-    print(both_d.to_json())
-
-    type1 = img_d.to_json()["type"].split("###")[1]
-    types = [typ for typ in both_d.to_json()["type"].split("###") if typ not in ["", " ", None]]
-    print(f"type1: {type1}")
-    print(f"types: {types}")
-
-
-if __name__ == "__main__":
-    main()
