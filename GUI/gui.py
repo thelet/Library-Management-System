@@ -134,9 +134,12 @@ class LibraryGUI:
             "My Books",
             "Available Books",
             "Not Available Books",
-            "Previously Loand",
+            "Previously Borrowed",
             "Notifications",
+            "Title",
+            "Author",
         ]
+
         self.filter_combobox = ttk.Combobox(
             search_frame, values=filter_options, state="readonly", width=15
         )
@@ -291,77 +294,146 @@ class LibraryGUI:
     def perform_search(self):
         """Combine textual search with the currently chosen filter."""
         criteria = str(self.search_entry.get().strip())
-
-        if criteria:
+        search_result = ""
+        if criteria and criteria !='':
             t_res = self.library.searchBooks(criteria, SearchByTitle())
             a_res = self.library.searchBooks(criteria, SearchByAuthor())
             c_res = self.library.searchBooks(criteria, SearchByCategory())
             initial_set = set(t_res + a_res + c_res)
+            search_result = (f"Search by criteria '{criteria}' found ({len(t_res)}) books by title, ({len(a_res)}) books by author, "
+                             f"({len(c_res)}) books by category. reformed - {'successfully' if len(initial_set) > 0 else 'failed'}")
         else:
             initial_set = set(self.library.books.values())
 
-        filtered = self.apply_filter_to_books(initial_set)
+        filtered, used_filter = self.apply_filter_to_books(initial_set)
+        merged = (f"\nBooks display by '{criteria}', combined with filter '{used_filter}' "
+                  f" - {'successfully' if len(filtered) > 0 else 'failed'}. Found ({len(filtered)}) matching books.")
+        if used_filter not in ["Title", "Author", "Category"]:
+            self.library.log_notify_print(to_log=search_result, to_print=search_result, to_notify=None)
+        if criteria and criteria !='':
+            self.library.log_notify_print(to_log=merged, to_print=merged, to_notify=None)
+        else:
+            msg_filter = f"Filtered books by '{used_filter}' - {'successfully' if len(filtered) > 0 else 'failed'}. Found ({len(filtered)} books"
+            self.library.log_notify_print(to_log=msg_filter, to_print=msg_filter, to_notify=None)
         self.update_book_list(filtered)
 
     def perform_filter(self):
         """Apply only the chosen filter, ignoring textual search."""
         initial_set = set(self.library.books.values())
         filtered = self.apply_filter_to_books(initial_set)
-        msg = f"Books filter by '{""}' displayed {'successfully' if len(filtered) > 0 else 'fails'}. found ({len(filtered)}) matching books.  "
+        chosen_filter = self.filter_combobox.get()
+        msg = f"Books filter by '{chosen_filter}' displayed {'successfully' if len(filtered) > 0 else 'failed'}. Found ({len(filtered)}) matching books."
         self.library.log_notify_print(to_log=msg, to_print=msg, to_notify=None)
         self.update_book_list(filtered)
 
     def apply_filter_to_books(self, books_set):
+        """
+        Applies the selected filter to the provided set of books and returns the filtered set.
+
+        Parameters:
+            books_set (set): A set of Book objects to filter.
+
+        Returns:
+            set: A filtered set of Book objects based on the selected filter.
+        """
         chosen_filter = self.filter_combobox.get()
-        if chosen_filter == "All Books":
+
+        # Define filter functions
+        def filter_all(books):
+            return books
+
+        def filter_by_genre(books):
+            selected_genre = self.genre_combobox.get().strip()
+            if selected_genre:
+                return {b for b in books_set if b.category == selected_genre}
             return books_set
-        elif chosen_filter == "By Genre":
-            if self.genre_combobox:
-                selected_genre = self.genre_combobox.get().strip()
-                if selected_genre:
-                    return {b for b in books_set if b.category == selected_genre}
-            return books_set
-        elif chosen_filter == "Popular Books":
+
+        def filter_popular(books):
             try:
                 popular_books = set(self.library.getPopularBooks())
+                return popular_books.intersection(books)
             except BookNotFoundException:
-                popular_books = set()
-            return popular_books
-        elif chosen_filter == "My Books":
+                return set()
+
+        def filter_my_books(books):
             if self.current_user:
-                return {
-                    b
-                    for b in books_set
-                    if b in getattr(self.current_user, "borrowedBooks", [])
-                }
+                return {book for book in books if book in getattr(self.current_user, "borrowedBooks", [])}
             return set()
-        elif chosen_filter == "Available Books":
-            return {b for b in books_set if b.available_copies > 0}
-        elif chosen_filter == "Not Available Books":
-            return {b for b in books_set if b.available_copies == 0}
-        elif chosen_filter == "Previously Loand":
-            if self.current_user and hasattr(
-                self.current_user, "previously_borrowed_books"
-            ):
-                prev_ids = (
-                    self.current_user.previously_borrowed_books
-                )  # e.g. [1, 10, 12]
-                return {b for b in books_set if b.id in prev_ids}
+
+        def filter_available(books):
+            return {book for book in books if book.available_copies > 0}
+
+        def filter_not_available(books):
+            return {book for book in books if book.available_copies == 0}
+
+        def filter_previously_borrowed(books):
+            if self.current_user and hasattr(self.current_user, "previously_borrowed_books"):
+                prev_ids = set(self.current_user.previously_borrowed_books)  # Convert to set for O(1) lookups
+                return {book for book in books if book.id in prev_ids}
             return set()
-        elif chosen_filter == "Notifications":
+
+        def filter_notifications(books):
             if self.current_user:
-                return {b for b in books_set if self.current_user in b.user_observers}
+                return {book for book in books if self.current_user in book.user_observers}
             return set()
-        return books_set
+
+        def filter_title(books):
+            criteria = str(self.search_entry.get().strip())
+            t_res = self.library.searchBooks(criteria, SearchByTitle())
+            return t_res
+        def filter_author(books):
+            criteria = str(self.search_entry.get().strip())
+            a_res = self.library.searchBooks(criteria, SearchByAuthor())
+            return a_res
+
+        # Mapping of filter names to their corresponding functions
+        filter_functions = {
+            "All Books": filter_all,
+            "By Genre": filter_by_genre,
+            "Popular Books": filter_popular,
+            "My Books": filter_my_books,
+            "Available Books": filter_available,
+            "Not Available Books": filter_not_available,
+            "Previously Borrowed": filter_previously_borrowed,  # Corrected typo
+            "Notifications": filter_notifications,
+            "Title": filter_title,
+            "Author": filter_author,
+        }
+
+        # Retrieve the appropriate filter function based on the chosen filter
+        filter_func = filter_functions.get(chosen_filter, filter_all)
+
+        # Apply the filter function and return the result
+        filtered_books = filter_func(books_set)
+        return filtered_books, chosen_filter
 
     def update_book_list(self, books_collection):
         self.book_listbox.delete(0, tk.END)
         # Sort by title
-        for i, book in enumerate(sorted(books_collection, key=lambda bk: bk.title)):
+        self.book_listbox.delete(0, tk.END)
+
+        # Validate that all items in books_collection are Book instances
+        valid_books = set()
+        invalid_entries = []
+        for book in books_collection:
+            if hasattr(book, 'title'):
+                valid_books.add(book)
+            else:
+                invalid_entries.append(book)
+
+        if invalid_entries:
+            # Log the invalid entries
+            for invalid in invalid_entries:
+                print(f"Warning : Invalid entry detected in books_collection: {invalid}")
+        if not valid_books:
+            # If no valid books, display a message
+            self.details_label.config(text="No books to display.")
+            return
+
+        sorted_books = sorted(valid_books, key=lambda bk: bk.title.lower())
+        for i, book in enumerate(sorted_books):
             self.book_listbox.insert(tk.END, book.title)
-            if self.current_user and book in getattr(
-                self.current_user, "borrowedBooks", []
-            ):
+            if self.current_user and book in getattr(self.current_user, "borrowedBooks", []):
                 self.book_listbox.itemconfig(i, bg="green")
 
     # ----------------- Book Selection ----------------- #

@@ -183,17 +183,18 @@ class Library(Subject, Observer):
 
 
     # ----------- Searching and Filters-------------
-    def searchBooks(self, criteria: str, strategy: SearchStrategy) -> List[Book]:
-        book_list, str_to_log = strategy.search([book for book in self.books.values()], criteria)
-        self.log_notify_print(to_log= f"{str_to_log} - {'successfully' if len(book_list) > 0 else 'failed'}" ,
-                              to_print=str_to_log, to_notify=None)
+    def searchBooks(self, criteria: str, strategy: SearchStrategy, books = None) -> List[Book]:
+        if books is None:
+            book_list, str_to_log = strategy.search([book for book in self.books.values()], criteria)
+        else:
+            book_list, str_to_log = strategy.search([book for book in books], criteria)
         return book_list
 
     def getPopularBooks(self):
         sorted_books = sorted([book for book in self.books.values()], key=lambda book: book.borrow_count, reverse=True)
         if sorted_books and len(sorted_books) > 0:
-            self.log_notify_print(to_log="Popular books - preformed - successfully.\nPopular books result:",
-                                  to_print="Popular books search results: ", to_notify=None)
+            self.log_notify_print(to_log=f"Popular books - preformed - successfully. found ({len(sorted_books)}) books.",
+                                  to_print=f"Popular books - preformed - successfully. found ({len(sorted_books)}) books.", to_notify=None)
             for book in sorted_books:
                 self.log_notify_print(to_log=f"Book: '{book.title}' Loans Counter: {book.borrow_count}",
                                       to_print=f"{book.title} - Borrow_count: {book.borrow_count}", to_notify=None)
