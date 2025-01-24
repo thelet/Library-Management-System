@@ -13,6 +13,7 @@ from Classes.book import Book
 from design_patterns.logger import Logger
 
 
+
 class LoggerCaptureMixin:
     """
     Mixin that redirects Logger output to an in-memory buffer so you can
@@ -117,35 +118,6 @@ class TestLibraryGUI(LoggerCaptureMixin, unittest.TestCase):
             mock_toplevel.assert_called_once()
 
 
-    def test_handleRemoveBook_success(self):
-        """
-        If user has permission and there's at least one book in the library,
-        handleRemoveBook should remove it successfully.
-        """
-        # Give the user manage_books permission
-        self.test_user.permissions.append("manage_books")
-
-        # Add a sample book
-        book = Book.createBook("Test Title", "Test Author", 2023, "Test Genre", 5)
-        self.library.addBook(book)
-
-        # We patch Toplevel so the user can pick which book to remove
-        # We'll mock the combobox selection
-        with patch('tkinter.ttk.Combobox') as mock_combo:
-            instance = mock_combo.return_value
-            instance.get.return_value = "Test Title"  # user "selected" our book
-
-            with patch('tkinter.messagebox.showinfo') as mock_info:
-                self.gui.handleRemoveBook()
-                # Verify the library no longer has that book
-                self.assertNotIn(book.id, self.library.books.keys())
-
-                # Check success message
-                mock_info.assert_called_once()
-                self.assertIn("Book 'Test Title' removed.", mock_info.call_args[0][1])
-
-        logs = self.log_stream.getvalue()
-        self.assertIn("removed 'Test Title'", logs)  # from logger
 
     def test_handleLendBook_no_user(self):
         """

@@ -21,12 +21,13 @@ class LibraryGUI:
          - My Books       (books the user borrowed)
          - Available Books (copies > 0)
          - Not Available Books (copies == 0)
-         - Previously Loand (placeholder: current_user.prev_books)
+         - Previously Borrowed (placeholder: current_user.prev_books)
          - Notifications (books where current_user is in user_observers)
       2) A 'Remove from Notifications' button next to 'Apply for Notifications'.
       3) is_librarian = self.current_user.role == "librarian" is unchanged.
       4) Smaller window size: 800x400.
       5) Notifications screen below the book screen, each with scrollbars.
+      6) Add Decorator button for librarians to add descriptions and cover images to books.
     """
 
     def __init__(self, root: tk.Toplevel, current_user: Optional[User] = None):
@@ -54,6 +55,7 @@ class LibraryGUI:
         self.return_button = None
         self.apply_notifications_button = None
         self.remove_notifications_button = None
+        self.add_decorator_button = None  # New Button for Decorator
 
         # Notifications Text
         self.notifications_text = None
@@ -61,8 +63,7 @@ class LibraryGUI:
         self.create_widgets()
 
     def create_widgets(self):
-        # DO NOT CHANGE: is_librarian = self.current_user.role == "librarian"
-        # (if current_user is None, this will be False)
+        # Determine user roles
         is_librarian = (
             self.current_user is not None and self.current_user.role == "librarian"
         )
@@ -232,6 +233,16 @@ class LibraryGUI:
             )
             self.return_button.pack(side=tk.TOP, pady=5)
 
+        # --- New: Add Decorator Button for Librarians ---
+        is_librarian = (
+            self.current_user is not None and self.current_user.role == "librarian"
+        )
+        if is_librarian:
+            self.add_decorator_button = tk.Button(
+                button_row, text="Add Decorator", command=self.handleAddDecorator
+            )
+            self.add_decorator_button.pack(side=tk.TOP, pady=5)
+
     def create_notifications_screen(self, parent):
         """Smaller notifications screen with a Text widget + scrollbar + refresh button (centered)."""
         parent.pack_propagate(False)
@@ -302,7 +313,7 @@ class LibraryGUI:
             initial_set = set(t_res + a_res + c_res)
             search_result = (
                 f"Search by criteria '{criteria}' found ({len(t_res)}) books by title, ({len(a_res)}) books by author, "
-                f"({len(c_res)}) books by category. reformed - {'successfully' if len(initial_set) > 0 else 'failed'}"
+                f"({len(c_res)}) books by category. reformulated - {'successfully' if len(initial_set) > 0 else 'failed'}"
             )
         else:
             initial_set = set(self.library.books.values())
@@ -813,3 +824,82 @@ class LibraryGUI:
         else:
             messagebox.showinfo("Logout", "Guest session ended.")
         self.root.destroy()
+
+    # ----------------- New: Handle Add Decorator for Librarians ----------------- #
+    def handleAddDecorator(self):
+        """
+        Opens a window to add decorators (description and/or cover image) to the selected book.
+        Only accessible by librarians.
+        """
+        if not self.current_user or self.current_user.role != "librarian":
+            messagebox.showwarning("Warning", "You do not have permission to add decorators.")
+            return
+
+        sel = self.book_listbox.curselection()
+        if not sel:
+            messagebox.showinfo("Info", "Select a book first.")
+            return
+
+        idx = sel[0]
+        btitle = self.book_listbox.get(idx)
+        book = next((b for b in self.library.books.values() if b.title == btitle), None)
+        if not book:
+            messagebox.showerror("Error", "Book not found.")
+            return
+
+        decorator_win = tk.Toplevel(self.root)
+        decorator_win.title("Add Decorator to Book")
+
+        # Description Field
+        tk.Label(decorator_win, text="Description:").grid(row=0, column=0, padx=5, pady=5)
+        description_ent = tk.Entry(decorator_win, width=50)
+        description_ent.grid(row=0, column=1, padx=5, pady=5)
+
+        # Cover Image Field
+        image_path = tk.StringVar(value="")
+
+        def choose_image():
+            file_path = filedialog.askopenfilename(
+                title="Select Cover Image",
+                filetypes=[
+                    ("Image Files", "*.png;*.jpg;*.jpeg;*.gif;*.bmp"),
+                    ("All Files", "*.*"),
+                ],
+            )
+            if file_path:
+                image_path.set(file_path)
+
+        tk.Button(decorator_win, text="Add Cover Image", command=choose_image).grid(row=1, column=0, columnspan=2, pady=5)
+
+        # Confirm Button
+        def confirm_add_decorator():
+            description = description_ent.get().strip()
+            cover_image = image_path.get().strip()
+
+            if not description and not cover_image:
+                messagebox.showwarning("Warning", "Please provide a description and/or cover image.")
+                return
+
+            try:
+                decorated_book = book
+
+                if description:
+                    decorated_book = DescriptionDecorator(decorated_book, description)
+
+                if cover_image:
+                    if not cover_image.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".bmp")):
+                        messagebox.showerror("Error", "Invalid image file format.")
+                        return
+                    decorated_book = CoverDecorator(decorated_book, cover_image)
+
+                self.library.add_decorated_book(decorated_book)
+                self.logger.log(f"{self.current_user.username} added decorator to '{btitle}'.")
+
+                messagebox.showinfo("Success", f"Decorator added to '{btitle}'.")
+                self.perform_search()
+                decorator_win.destroy()
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to add decorator: {e}")
+
+        tk.Button(decorator_win, text="Add Decorator", command=confirm_add_decorator).grid(row=2, column=0, columnspan=2, pady=10)
