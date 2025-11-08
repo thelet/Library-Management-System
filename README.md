@@ -147,7 +147,5 @@ This project is licensed under the MIT License. See the `LICENSE` file for detai
 ---
 
 ## Contact
-For any questions or issues, please contact the project maintainer at:
-- Email: maintainer@example.com
-- GitHub: [Your GitHub Profile](https://github.com/your-profile)
+For any questions or issues, please contact the project maintainer
 
